@@ -40,7 +40,7 @@ type CIUrls = Record<keyof typeof CI_PROVIDERS, string>
 
 const getInitialProvider = (provider: Provider, path: string, urls: CIUrls) => {
   const defaultProvider =
-    providerToName(provider) !== 'GitHub'
+    providerToName(provider) === 'GitHub'
       ? CI_PROVIDERS.OtherCI
       : CI_PROVIDERS.GitHubActions
   if (path === urls.CircleCI) {
@@ -49,6 +49,7 @@ const getInitialProvider = (provider: Provider, path: string, urls: CIUrls) => {
   if (path === urls.OtherCI) {
     return CI_PROVIDERS.OtherCI
   }
+
   return defaultProvider
 }
 
@@ -81,6 +82,14 @@ function CISelector({ provider, owner, repo }: CISelectorProps) {
           }}
         >
           <RadioTileGroup.Item
+            value={CI_PROVIDERS.OtherCI}
+            data-testid="other-ci-radio"
+          >
+            <RadioTileGroup.Label>
+              Using Codecov&apos;s CLI <b>(Recommended)</b>
+            </RadioTileGroup.Label>
+          </RadioTileGroup.Item>
+          <RadioTileGroup.Item
             value={CI_PROVIDERS.GitHubActions}
             data-testid="github-actions-radio"
           >
@@ -91,14 +100,6 @@ function CISelector({ provider, owner, repo }: CISelectorProps) {
             data-testid="circle-ci-radio"
           >
             <RadioTileGroup.Label>Using Circle CI</RadioTileGroup.Label>
-          </RadioTileGroup.Item>
-          <RadioTileGroup.Item
-            value={CI_PROVIDERS.OtherCI}
-            data-testid="other-ci-radio"
-          >
-            <RadioTileGroup.Label>
-              Using Codecov&apos;s CLI
-            </RadioTileGroup.Label>
           </RadioTileGroup.Item>
         </RadioTileGroup>
       </Card.Content>

@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom'
 
+import config from 'config'
+
 import {
   EVENT_METRICS,
   useStoreCodecovEventMetric,
@@ -38,8 +40,10 @@ function WorkflowYMLStep({
   })
 
   const workflowYMLConfig = `- name: Upload coverage reports to Codecov
-    uses: codecov/codecov-action@v5
+    uses: codecov/codecov-action@v3
     with:
+      # add CODECOV_URL=${config.API_URL} to repository secrets
+      url: \${{ secrets.CODECOV_URL }}
       token: \${{ secrets.CODECOV_TOKEN }}${
         orgUploadToken
           ? `

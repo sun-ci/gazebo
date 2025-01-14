@@ -211,7 +211,7 @@ describe('UserDropdown', () => {
         expect(link).toBeVisible()
         expect(link).toHaveAttribute(
           'href',
-          'https://github.com/apps/sun-codecov-self-hosted/installations/new'
+          `https://github.com/apps/${config.GH_APP}/installations/new`
         )
       })
     })

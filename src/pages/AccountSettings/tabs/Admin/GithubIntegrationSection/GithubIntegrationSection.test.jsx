@@ -123,7 +123,7 @@ describe('GithubIntegrationSection', () => {
       expect(link).toBeInTheDocument()
       expect(link).toHaveAttribute(
         'href',
-        'https://github.com/apps/sun-codecov-self-hosted'
+        `https://github.com/apps/${config.GH_APP}`
       )
     })
   })

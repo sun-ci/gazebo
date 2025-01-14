@@ -408,6 +408,20 @@ export function useStaticNavLinks() {
       isExternalLink: true,
       openNewTab: true,
     },
+    codecovExampleJSSunCIWorkflow: {
+      text: 'Example SunCI JS workflow',
+      path: () =>
+        'https://github.com/sun-ci/codecov-example-ci/blob/master/.sun-ci.yml',
+      isExternalLink: true,
+      openNewTab: true,
+    },
+    codecovExampleJSGHAWorkflow: {
+      text: 'Example GitHub Actions JS workflow',
+      path: () =>
+        'https://github.com/sun-ci/codecov-example-ci/blob/master/.github/workflows/actions.yml',
+      isExternalLink: true,
+      openNewTab: true,
+    },
     codecovExampleJSCircleCIWorkflow: {
       text: 'Github Codecov Example CircleCI JS workflow',
       path: () =>

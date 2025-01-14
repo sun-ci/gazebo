@@ -769,7 +769,7 @@ describe('ContextSwitcher', () => {
       )
       expect(installCopy).not.toHaveAttribute(
         'href',
-        'https://github.com/apps/codecov/installations/new'
+        `https://github.com/apps/${config.GH_APP}/installations/new`
       )
     })
 

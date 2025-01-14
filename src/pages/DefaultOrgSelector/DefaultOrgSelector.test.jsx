@@ -524,7 +524,7 @@ describe('DefaultOrgSelector', () => {
 
       await waitFor(() =>
         expect(mockWindow).toHaveBeenCalledWith(
-          'https://github.com/apps/sun-codecov-self-hosted/installations/new',
+          `https://github.com/apps/${config.GH_APP}/installations/new`,
           '_blank'
         )
       )

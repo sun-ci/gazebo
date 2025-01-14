@@ -72,7 +72,7 @@ export function InstructionBox() {
         ))}
       </div>
       <div className="flex justify-end">
-        <div className="overflow-auto p-4">
+        <div className="grow overflow-auto p-4">
           <pre>{systemContent}</pre>
         </div>
         <div className="absolute m-4">
