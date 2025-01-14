@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, renderHook, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type Mock } from 'vitest'
 
@@ -63,14 +63,14 @@ describe('useUpdateOktaConfig', () => {
     mockedToastNotification.mockReturnValue(addToast)
 
     server.use(
-      graphql.mutation(`SaveOktaConfig`, (info) => {
+      graphql.mutation(`SaveOktaConfig`, () => {
         return HttpResponse.json({ data: response })
       })
     )
   }
 
   describe('when calling the mutation', () => {
-    let consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     afterAll(() => {
       consoleSpy.mockRestore()

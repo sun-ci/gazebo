@@ -1,20 +1,13 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { useParams } from 'react-router-dom'
 
-import {
-  incrementBillingPageVisitCounter,
-  updateBillingMetrics,
-} from 'pages/PlanPage/PlanMetrics/planMetrics'
-import { useAccountDetails } from 'services/account'
-import { isFreePlan } from 'shared/utils/billing'
+import { IndividualPlan, usePlanData } from 'services/account'
 import Button from 'ui/Button'
-
-import { NewPlanType } from '../constants'
 
 interface BillingControlsProps {
   seats: number
   isValid: boolean
-  newPlan: NewPlanType
+  newPlan?: IndividualPlan
 }
 
 const UpdateButton: React.FC<BillingControlsProps> = ({
@@ -23,28 +16,14 @@ const UpdateButton: React.FC<BillingControlsProps> = ({
   seats,
 }) => {
   const { provider, owner } = useParams<{ provider: string; owner: string }>()
-  const { data: accountDetails } = useAccountDetails({ provider, owner })
+  const { data: planData } = usePlanData({ provider, owner })
 
-  const currentPlanValue = accountDetails?.plan?.value || '0'
-  const currentPlanQuantity = accountDetails?.plan?.quantity || 0
+  const currentPlanValue = planData?.plan?.value
+  const currentPlanQuantity = planData?.plan?.planUserCount || 0
 
-  const isSamePlan = newPlan === currentPlanValue
+  const isSamePlan = newPlan?.value === currentPlanValue
   const noChangeInSeats = seats === currentPlanQuantity
   const disabled = !isValid || (isSamePlan && noChangeInSeats)
-
-  useEffect(() => {
-    incrementBillingPageVisitCounter()
-  }, [])
-
-  const sendBillingMetricsToSentry = () => {
-    updateBillingMetrics(
-      isSamePlan,
-      seats,
-      currentPlanValue,
-      newPlan,
-      currentPlanQuantity
-    )
-  }
 
   return (
     <div className="inline-flex">
@@ -55,9 +34,8 @@ const UpdateButton: React.FC<BillingControlsProps> = ({
         variant="primary"
         hook="submit-upgrade"
         to={undefined}
-        onClick={sendBillingMetricsToSentry}
       >
-        {isFreePlan(currentPlanValue) ? 'Proceed to checkout' : 'Update'}
+        {planData?.plan?.isFreePlan ? 'Proceed to checkout' : 'Update'}
       </Button>
     </div>
   )

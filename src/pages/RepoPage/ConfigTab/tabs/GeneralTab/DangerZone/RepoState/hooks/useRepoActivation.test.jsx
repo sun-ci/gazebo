@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useRepoActivation } from './useRepoActivation'
@@ -47,7 +47,7 @@ describe('useRepoActivation', () => {
 
   function setup({ failMutation = false } = {}) {
     server.use(
-      http.patch('/internal/github/codecov/repos/codecov-client/', (info) => {
+      http.patch('/internal/github/codecov/repos/codecov-client/', () => {
         mutate()
 
         if (failMutation) {

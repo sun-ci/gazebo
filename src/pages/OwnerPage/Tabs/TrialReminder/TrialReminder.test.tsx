@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import config from 'config'
 
 import { TrialStatuses } from 'services/account'
-import { Plans } from 'shared/utils/billing'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import TrialReminder from './TrialReminder'
 
@@ -28,10 +28,10 @@ const queryClient = new QueryClient({
 const mockResponse = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: TrialStatuses.NOT_STARTED,
   trialStartDate: '',
   trialEndDate: '',
@@ -39,6 +39,10 @@ const mockResponse = {
   pretrialUsersCount: 0,
   planUserCount: 1,
   hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isSentryPlan: false,
+  isProPlan: false,
+  isTrialPlan: false,
 }
 
 const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
@@ -90,7 +94,7 @@ describe('TrialReminder', () => {
     mockedConfig.IS_SELF_HOSTED = isSelfHosted
 
     server.use(
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -101,12 +105,16 @@ describe('TrialReminder', () => {
                 trialStartDate,
                 trialEndDate,
                 value: planValue,
+                isFreePlan: planValue === Plans.USERS_BASIC,
+                isTeamPlan:
+                  planValue === Plans.USERS_TEAMM ||
+                  planValue === Plans.USERS_TEAMY,
               },
             },
           },
         })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({
           data: { owner: { isCurrentUserPartOfOrg: userPartOfOrg } },
         })

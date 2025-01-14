@@ -1,20 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TrialStatuses } from 'services/account'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import ProPlanSubheading from './ProPlanSubheading'
 
 const mockResponse = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: TrialStatuses.NOT_STARTED,
   trialStartDate: '',
   trialEndDate: '',
@@ -22,6 +23,11 @@ const mockResponse = {
   pretrialUsersCount: 0,
   planUserCount: 1,
   hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isFreePlan: true,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTeamPlan: false,
 }
 
 const server = setupServer()
@@ -59,17 +65,18 @@ interface SetupArgs {
 describe('ProPlanSubheading', () => {
   function setup({
     trialStatus = TrialStatuses.NOT_STARTED,
-    planValue = 'users-basic',
+    planValue = Plans.USERS_BASIC,
     hasPrivateRepos = true,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
               hasPrivateRepos,
               plan: {
                 ...mockResponse,
+                isTrialPlan: planValue === Plans.USERS_TRIAL,
                 trialStatus,
                 value: planValue,
               },
@@ -143,7 +150,7 @@ describe('ProPlanSubheading', () => {
     it('renders correct text', async () => {
       setup({
         trialStatus: TrialStatuses.ONGOING,
-        planValue: 'users-trial',
+        planValue: Plans.USERS_TRIAL,
       })
 
       render(<ProPlanSubheading />, { wrapper })
@@ -155,7 +162,7 @@ describe('ProPlanSubheading', () => {
     it('renders link to faqs', async () => {
       setup({
         trialStatus: TrialStatuses.ONGOING,
-        planValue: 'users-trial',
+        planValue: Plans.USERS_TRIAL,
       })
 
       render(<ProPlanSubheading />, { wrapper })

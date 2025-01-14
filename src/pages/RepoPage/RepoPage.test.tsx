@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 
@@ -245,7 +245,7 @@ describe('RepoPage', () => {
     })
 
     server.use(
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         if (hasRepoData) {
           return HttpResponse.json({
             data: mockGetRepo({
@@ -261,7 +261,7 @@ describe('RepoPage', () => {
 
         return HttpResponse.json({ data: { owner: {} } })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (tierValue === TierNames.TEAM) {
           return HttpResponse.json({
             data: { owner: { plan: { tierName: TierNames.TEAM } } },
@@ -271,7 +271,7 @@ describe('RepoPage', () => {
           data: { owner: { plan: { tierName: TierNames.PRO } } },
         })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview({
             coverageEnabled,
@@ -281,10 +281,10 @@ describe('RepoPage', () => {
           }),
         })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({ data: { owner: mockOwner } })
       }),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: mockUser })
       })
     )
@@ -870,7 +870,9 @@ describe('RepoPage', () => {
         })
         render(<RepoPage />, { wrapper: wrapper({ queryClient }) })
 
-        const msg = await screen.findByText('This repo has been deactivated')
+        const msg = await screen.findByText(
+          'This repository has been deactivated'
+        )
         expect(msg).toBeInTheDocument()
       })
     })

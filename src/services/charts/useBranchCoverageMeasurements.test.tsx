@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useBranchCoverageMeasurements } from './useBranchCoverageMeasurements'
@@ -97,7 +97,7 @@ describe('useBranchCoverageMeasurements', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetBranchCoverageMeasurements', (info) => {
+      graphql.query('GetBranchCoverageMeasurements', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {

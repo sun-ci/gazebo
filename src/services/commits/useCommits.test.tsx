@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useCommits } from './useCommits'
 
@@ -49,9 +49,11 @@ const node1 = {
       percentCovered: 100,
     },
   },
-  bundleAnalysisCompareWithParent: {
-    __typename: 'MissingHeadReport',
-    message: 'Missing head report',
+  bundleAnalysis: {
+    bundleAnalysisCompareWithParent: {
+      __typename: 'MissingHeadReport',
+      message: 'Missing head report',
+    },
   },
 }
 
@@ -72,9 +74,11 @@ const node2 = {
       percentCovered: 100,
     },
   },
-  bundleAnalysisCompareWithParent: {
-    __typename: 'MissingHeadReport',
-    message: 'Missing head report',
+  bundleAnalysis: {
+    bundleAnalysisCompareWithParent: {
+      __typename: 'MissingHeadReport',
+      message: 'Missing head report',
+    },
   },
 }
 
@@ -95,9 +99,11 @@ const node3 = {
       percentCovered: 100,
     },
   },
-  bundleAnalysisCompareWithParent: {
-    __typename: 'MissingHeadReport',
-    message: 'Missing head report',
+  bundleAnalysis: {
+    bundleAnalysisCompareWithParent: {
+      __typename: 'MissingHeadReport',
+      message: 'Missing head report',
+    },
   },
 }
 
@@ -294,7 +300,7 @@ describe('GetCommits', () => {
   })
 
   describe('when __typename is NotFoundError', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null
@@ -323,7 +329,7 @@ describe('GetCommits', () => {
   })
 
   describe('when __typename is OwnerNotActivatedError', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null
@@ -352,7 +358,7 @@ describe('GetCommits', () => {
   })
 
   describe('unsuccessful parse of zod schema', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null

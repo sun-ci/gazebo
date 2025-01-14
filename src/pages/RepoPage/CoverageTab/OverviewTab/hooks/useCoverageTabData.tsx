@@ -14,9 +14,13 @@ const BranchSchema = z
   .object({
     head: z
       .object({
-        totals: z
+        coverageAnalytics: z
           .object({
-            fileCount: z.number().nullable(),
+            totals: z
+              .object({
+                fileCount: z.number().nullable(),
+              })
+              .nullable(),
           })
           .nullable(),
       })
@@ -49,8 +53,10 @@ query CoverageTabData($owner: String!, $repo: String!, $branch: String!) {
       ... on Repository {
         branch(name: $branch) {
           head {
-            totals {
-              fileCount
+            coverageAnalytics {
+              totals {
+                fileCount
+              }
             }
           }
         }
@@ -129,7 +135,7 @@ export const useCoverageTabData = ({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useOktaConfig } from './useOktaConfig'
 
@@ -38,7 +38,7 @@ afterAll(() => {
 describe('useOktaConfig', () => {
   function setup(oktaConfigData = {}) {
     server.use(
-      graphql.query('GetOktaConfig', (info) => {
+      graphql.query('GetOktaConfig', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -79,7 +79,7 @@ describe('useOktaConfig', () => {
     })
 
     describe('invalid schema', () => {
-      let consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       afterAll(() => {
         consoleSpy.mockRestore()

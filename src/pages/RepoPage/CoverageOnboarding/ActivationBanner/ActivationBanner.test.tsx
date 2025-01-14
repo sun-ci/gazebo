@@ -1,8 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
+
+import config from 'config'
+
+import { BillingRate, PlanName, Plans } from 'shared/utils/billing'
 
 import ActivationBanner from './ActivationBanner'
 
@@ -17,6 +21,9 @@ vi.mock('./FreePlanSeatsLimitBanner', () => ({
 }))
 vi.mock('./PaidPlanSeatsLimitBanner', () => ({
   default: () => 'PaidPlanSeatsLimitBanner',
+}))
+vi.mock('./ActivationRequiredSelfHosted', () => ({
+  default: () => 'ActivationRequiredSelfHostedBanner',
 }))
 
 const queryClient = new QueryClient()
@@ -45,10 +52,10 @@ afterAll(() => {
 const mockTrialData = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: 'ONGOING',
   trialStartDate: '2023-01-01T08:55:25',
   trialEndDate: '2023-01-10T08:55:25',
@@ -56,17 +63,24 @@ const mockTrialData = {
   pretrialUsersCount: 0,
   planUserCount: 1,
   hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTrialPlan: false,
 }
 
 describe('ActivationBanner', () => {
   function setup(
     privateRepos = true,
     trialStatus = 'NOT_STARTED',
-    value = 'users-basic',
-    hasSeatsLeft = true
+    value: PlanName = Plans.USERS_BASIC,
+    hasSeatsLeft = true,
+    isSelfHosted = false
   ) {
+    config.IS_SELF_HOSTED = isSelfHosted
+
     server.use(
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -76,14 +90,17 @@ describe('ActivationBanner', () => {
                 trialStatus,
                 value,
                 hasSeatsLeft,
+                isFreePlan: value === Plans.USERS_BASIC,
+                isTeamPlan:
+                  value === Plans.USERS_TEAMM || value === Plans.USERS_TEAMY,
               },
               pretrialPlan: {
                 baseUnitPrice: 10,
                 benefits: [],
-                billingRate: 'monthly',
+                billingRate: BillingRate.MONTHLY,
                 marketingName: 'Users Basic',
                 monthlyUploadLimit: 250,
-                value: 'users-basic',
+                value: Plans.USERS_BASIC,
               },
             },
           },
@@ -101,7 +118,7 @@ describe('ActivationBanner', () => {
   })
 
   it('does not render trial eligible banner if user is not eligible to trial', async () => {
-    setup(false, 'ONGOING', 'users-basic', true)
+    setup(false, 'ONGOING', Plans.USERS_BASIC, true)
     const { container } = render(<ActivationBanner />, { wrapper })
 
     await waitFor(() => queryClient.isFetching)
@@ -111,7 +128,7 @@ describe('ActivationBanner', () => {
   })
 
   it('renders activation required banner if user is not on free plan and has seats left', async () => {
-    setup(true, 'ONGOING', 'users-pro', true)
+    setup(true, 'ONGOING', Plans.USERS_PR_INAPPM, true)
     render(<ActivationBanner />, { wrapper })
 
     const ActivationRequiredBanner = await screen.findByText(
@@ -121,7 +138,7 @@ describe('ActivationBanner', () => {
   })
 
   it('renders seats limit reached banner if user has no seats left and on free plan', async () => {
-    setup(true, 'ONGOING', 'users-basic', false)
+    setup(true, 'ONGOING', Plans.USERS_BASIC, false)
     render(<ActivationBanner />, { wrapper })
 
     const FreePlanSeatsLimitBanner = await screen.findByText(
@@ -131,12 +148,22 @@ describe('ActivationBanner', () => {
   })
 
   it('renders seats limit reached banner if user has no seats left and on paid plan', async () => {
-    setup(true, 'ONGOING', 'users-inappy', false)
+    setup(true, 'ONGOING', Plans.USERS_PR_INAPPY, false)
     render(<ActivationBanner />, { wrapper })
 
     const PaidPlanSeatsLimitBanner = await screen.findByText(
       /PaidPlanSeatsLimitBanner/
     )
     expect(PaidPlanSeatsLimitBanner).toBeInTheDocument()
+  })
+
+  it('renders activation required self hosted banner if user is self hosted', async () => {
+    setup(true, 'ONGOING', Plans.USERS_BASIC, true, true)
+    render(<ActivationBanner />, { wrapper })
+
+    const ActivationRequiredSelfHostedBanner = await screen.findByText(
+      /ActivationRequiredSelfHostedBanner/
+    )
+    expect(ActivationRequiredSelfHostedBanner).toBeInTheDocument()
   })
 })

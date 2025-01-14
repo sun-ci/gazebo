@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { usePullCompareTotalsTeam } from './usePullCompareTotalsTeam'
@@ -101,7 +101,7 @@ describe('usePullCompareTotalsTeam', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetPullCompareTotalsTeam', (info) => {
+      graphql.query('GetPullCompareTotalsTeam', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -206,7 +206,10 @@ describe('usePullCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 404 })
+          expect.objectContaining({
+            status: 404,
+            dev: 'usePullCompareTotalsTeam - 404 not found',
+          })
         )
       )
     })
@@ -238,7 +241,10 @@ describe('usePullCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 403 })
+          expect.objectContaining({
+            status: 403,
+            dev: 'usePullCompareTotalsTeam - 403 owner not activated',
+          })
         )
       )
     })
@@ -270,7 +276,10 @@ describe('usePullCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 404 })
+          expect.objectContaining({
+            status: 404,
+            dev: 'usePullCompareTotalsTeam - 404 failed to parse',
+          })
         )
       )
     })

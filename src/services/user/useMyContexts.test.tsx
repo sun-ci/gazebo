@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useMyContexts } from './useMyContexts'
@@ -43,7 +43,7 @@ describe('useMyContexts', () => {
           return HttpResponse.json({})
         }
 
-        const orgList = !!info.variables?.after ? orgList2 : orgList1
+        const orgList = info.variables?.after ? orgList2 : orgList1
         const hasNextPage = info.variables?.after ? false : true
         const endCursor = info.variables?.after ? 'second' : 'first'
 

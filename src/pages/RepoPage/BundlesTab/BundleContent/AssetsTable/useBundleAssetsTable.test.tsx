@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import qs from 'qs'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
@@ -32,46 +36,33 @@ const mockedBundleAssets = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              bundleData: {
-                size: {
-                  uncompress: 12,
-                },
-              },
-              assetsPaginated: {
-                edges: [
-                  {
-                    node: {
-                      name: 'asset-1',
-                      extension: 'js',
-                      bundleData: {
-                        loadTime: {
-                          threeG: 1,
-                          highSpeed: 2,
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                info: { pluginName: '@codecov/vite-plugin' },
+                bundleData: { size: { uncompress: 12 } },
+                assetsPaginated: {
+                  edges: [
+                    {
+                      node: {
+                        name: 'asset-1',
+                        routes: ['/'],
+                        extension: 'js',
+                        bundleData: {
+                          loadTime: { threeG: 1, highSpeed: 2 },
+                          size: { uncompress: 3, gzip: 4 },
                         },
-                        size: {
-                          uncompress: 3,
-                          gzip: 4,
+                        measurements: {
+                          change: { size: { uncompress: 5 } },
+                          measurements: [
+                            { timestamp: '2022-10-10T11:59:59', avg: 6 },
+                          ],
                         },
-                      },
-                      measurements: {
-                        change: {
-                          size: {
-                            uncompress: 5,
-                          },
-                        },
-                        measurements: [
-                          { timestamp: '2022-10-10T11:59:59', avg: 6 },
-                        ],
                       },
                     },
-                  },
-                ],
-                pageInfo: {
-                  hasNextPage: false,
-                  endCursor: null,
+                  ],
+                  pageInfo: { hasNextPage: false, endCursor: null },
                 },
               },
             },
@@ -84,25 +75,26 @@ const mockedBundleAssets = {
 
 const initialEntry = '/gh/codecov/test-repo/bundles/test-branch/test-bundle'
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      suspense: true,
-    },
-  },
+  defaultOptions: { queries: { retry: false, suspense: true } },
 })
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
+})
+
 const wrapper =
   (initialEntries = initialEntry): React.FC<React.PropsWithChildren> =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <Suspense>
-        <MemoryRouter initialEntries={[initialEntries]}>
-          <Route path={'/:provider/:owner/:repo/bundles/:branch/:bundle'}>
-            {children}
-          </Route>
-        </MemoryRouter>
-      </Suspense>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <Suspense>
+          <MemoryRouter initialEntries={[initialEntries]}>
+            <Route path={'/:provider/:owner/:repo/bundles/:branch/:bundle'}>
+              {children}
+            </Route>
+          </MemoryRouter>
+        </Suspense>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 const server = setupServer()
@@ -122,14 +114,14 @@ afterAll(() => {
 
 describe('useBundleAssetsTable', () => {
   function setup() {
-    const queryVarMock = jest.fn()
+    const queryVarMock = vi.fn()
 
     server.use(
       graphql.query('BundleAssets', (info) => {
         queryVarMock(info.variables)
         return HttpResponse.json({ data: mockedBundleAssets })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
       })
     )
@@ -153,43 +145,26 @@ describe('useBundleAssetsTable', () => {
     )
 
     const expectedResult = {
-      pageParams: [undefined],
+      pageParams: [''],
       pages: [
         {
           assets: [
             {
-              bundleData: {
-                loadTime: {
-                  highSpeed: 2,
-                  threeG: 1,
-                },
-                size: {
-                  gzip: 4,
-                  uncompress: 3,
-                },
-              },
-              extension: 'js',
-              measurements: {
-                change: {
-                  size: {
-                    uncompress: 5,
-                  },
-                },
-                measurements: [
-                  {
-                    avg: 6,
-                    timestamp: '2022-10-10T11:59:59',
-                  },
-                ],
-              },
               name: 'asset-1',
+              routes: ['/'],
+              extension: 'js',
+              bundleData: {
+                loadTime: { highSpeed: 2, threeG: 1 },
+                size: { gzip: 4, uncompress: 3 },
+              },
+              measurements: {
+                change: { size: { uncompress: 5 } },
+                measurements: [{ avg: 6, timestamp: '2022-10-10T11:59:59' }],
+              },
             },
           ],
-          bundleData: {
-            size: {
-              uncompress: 12,
-            },
-          },
+          bundleData: { size: { uncompress: 12 } },
+          bundleInfo: { pluginName: '@codecov/vite-plugin' },
           pageInfo: {
             endCursor: null,
             hasNextPage: false,

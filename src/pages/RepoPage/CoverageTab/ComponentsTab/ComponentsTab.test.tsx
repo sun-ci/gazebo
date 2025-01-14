@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import React from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -48,7 +48,7 @@ const mockRepoSettings = (
 
 const server = setupServer()
 const queryClient = new QueryClient()
-let testLocation = {
+const testLocation = {
   pathname: '',
 }
 
@@ -88,8 +88,10 @@ const backfillDataCompleted = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsMeasurementsActive: true,
-      componentsMeasurementsBackfilled: true,
+      coverageAnalytics: {
+        componentsMeasurementsActive: true,
+        componentsMeasurementsBackfilled: true,
+      },
     },
   },
 }
@@ -101,8 +103,10 @@ const backfillDataNotStarted = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsMeasurementsActive: false,
-      componentsMeasurementsBackfilled: false,
+      coverageAnalytics: {
+        componentsMeasurementsActive: false,
+        componentsMeasurementsBackfilled: false,
+      },
     },
   },
 }
@@ -114,8 +118,10 @@ const backfillDataInProgress = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsMeasurementsActive: true,
-      componentsMeasurementsBackfilled: false,
+      coverageAnalytics: {
+        componentsMeasurementsActive: true,
+        componentsMeasurementsBackfilled: false,
+      },
     },
   },
 }
@@ -127,8 +133,10 @@ const backfillDataTimeseriesNotEnabled = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsMeasurementsActive: false,
-      componentsMeasurementsBackfilled: false,
+      coverageAnalytics: {
+        componentsMeasurementsActive: false,
+        componentsMeasurementsBackfilled: false,
+      },
     },
   },
 }
@@ -164,7 +172,7 @@ describe('Components Tab', () => {
     isCurrentUserPartOfOrg?: boolean
   }) {
     server.use(
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (tierValue === TierNames.TEAM) {
           return HttpResponse.json({
             data: { owner: { plan: { tierName: TierNames.TEAM } } },
@@ -174,12 +182,12 @@ describe('Components Tab', () => {
           data: { owner: { plan: { tierName: TierNames.PRO } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({
           data: mockRepoSettings(isPrivate, isCurrentUserPartOfOrg),
         })
       }),
-      graphql.query('BackfillComponentMemberships', (info) => {
+      graphql.query('BackfillComponentMemberships', () => {
         return HttpResponse.json({ data })
       }),
       graphql.query('FlagsSelect', (info) => {
@@ -187,11 +195,13 @@ describe('Components Tab', () => {
           owner: {
             repository: {
               __typename: 'Repository',
-              flags: {
-                edges: info.variables.after ? [...flags[0]] : [...flags[1]],
-                pageInfo: {
-                  hasNextPage: !info.variables.after,
-                  endCursor: info.variables.after ? 'aabb' : 'dW5pdA==',
+              coverageAnalytics: {
+                flags: {
+                  edges: info.variables.after ? [...flags[0]] : [...flags[1]],
+                  pageInfo: {
+                    hasNextPage: !info.variables.after,
+                    endCursor: info.variables.after ? 'aabb' : 'dW5pdA==',
+                  },
                 },
               },
             },
@@ -342,8 +352,10 @@ describe('Components Tab', () => {
           owner: {
             repository: {
               __typename: 'Repository',
-              componentsMeasurementsActive: false,
-              componentsMeasurementsBackfilled: false,
+              coverageAnalytics: {
+                componentsMeasurementsActive: false,
+                componentsMeasurementsBackfilled: false,
+              },
             },
           },
         },

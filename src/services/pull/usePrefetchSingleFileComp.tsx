@@ -18,7 +18,7 @@ import { NetworkErrorObject } from 'shared/api/helpers'
 import A from 'ui/A'
 
 import { ComparisonSchema, FileComparisonWithBase } from './fragments'
-import { transformImpactedFileData } from './utils'
+import { transformImpactedPullFileToDiff } from './utils'
 
 const FileComparisonWithBaseSchema = z.object({
   compareWithBase: z
@@ -84,7 +84,7 @@ interface UsePrefetchSingleFileCompArgs {
   repo: string
   pullId: string
   path: string
-  filters?: {}
+  filters?: object
 }
 
 export function usePrefetchSingleFileComp({
@@ -143,7 +143,7 @@ export function usePrefetchSingleFileComp({
                 detail: (
                   <p>
                     Activation is required to view this repo, please{' '}
-                    {/* @ts-expect-error */}
+                    {/* @ts-expect-error - A hasn't been typed yet*/}
                     <A to={{ pageName: 'membersTab' }}>click here </A> to
                     activate your account.
                   </p>
@@ -157,7 +157,7 @@ export function usePrefetchSingleFileComp({
             data.owner?.repository.pull?.compareWithBase?.__typename ===
             'Comparison'
           ) {
-            return transformImpactedFileData(
+            return transformImpactedPullFileToDiff(
               data?.owner?.repository?.pull?.compareWithBase?.impactedFile
             )
           }

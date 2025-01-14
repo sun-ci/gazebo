@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { usePrefetchCommitDirEntry } from './usePrefetchCommitDirEntry'
@@ -141,7 +141,7 @@ describe('usePrefetchCommitDirEntry', () => {
     isUnsuccessfulParse = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('CommitPathContents', (info) => {
+      graphql.query('CommitPathContents', () => {
         if (isMissingCoverage) {
           return HttpResponse.json({ data: mockDataMissingCoverage })
         } else if (isUnknownPath) {

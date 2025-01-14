@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -56,7 +56,7 @@ describe('GeneralTab', () => {
     }
   ) {
     server.use(
-      graphql.query('RepoDataTokensTeam', (info) => {
+      graphql.query('RepoDataTokensTeam', () => {
         if (hasDefaultBranch) {
           return HttpResponse.json({
             data: {
@@ -82,7 +82,7 @@ describe('GeneralTab', () => {
           },
         })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (tierValue === TierNames.TEAM) {
           return HttpResponse.json({
             data: { owner: { plan: { tierName: TierNames.TEAM } } },

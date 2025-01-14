@@ -86,7 +86,7 @@ function getColumns({ commitId }: { commitId: string }) {
                 variant="solid"
               />
             </span>
-            {/* @ts-expect-error */}
+            {/* @ts-expect-error - A hasn't been typed yet */}
             <A
               to={{
                 pageName: 'commitFileDiff',
@@ -170,7 +170,7 @@ export default function FilesChangedTableTeam() {
       commitData?.commit?.compareWithParent?.impactedFiles?.__typename ===
         'ImpactedFiles'
     ) {
-      return commitData?.commit?.compareWithParent?.impactedFiles?.results
+      return commitData?.commit?.compareWithParent?.impactedFiles?.results ?? []
     }
 
     return []

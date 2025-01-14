@@ -1,10 +1,10 @@
 /* eslint-disable camelcase */
-import { http, HttpResponse } from 'msw2'
+import { http, HttpResponse } from 'msw'
 
 const usersUri =
   '/internal/:provider/:owner/users/?activated=&is_admin=&ordering=name&search=&page=1&page_size=50'
 
-export const randomUsersHandler = http.get(usersUri, (info) => {
+export const randomUsersHandler = http.get(usersUri, () => {
   return HttpResponse.json(usersObject)
 })
 

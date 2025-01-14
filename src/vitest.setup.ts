@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
 // not sure why this lint is being fired here so I'm disabling it
-// eslint-disable-next-line testing-library/await-fire-event
+// eslint-disable-next-line testing-library/await-async-events
 expect.extend(matchers)
 
 // Prevent timezone differences between local and CI/CD
@@ -17,6 +17,7 @@ vi.mock('@sentry/react', async () => {
   return {
     ...originalModule,
     setUser: vi.fn(),
+    withScope: vi.fn(),
     metrics: {
       ...originalModule.metrics!,
       distribution: vi.fn(),
@@ -27,23 +28,28 @@ vi.mock('@sentry/react', async () => {
   }
 })
 
+window.matchMedia = vi.fn().mockResolvedValue({ matches: false })
+
 beforeAll(() => {
-  // This is a bit of a hack to get Vitest fake timers setup to work with waitFor and findBy's
-  // GH Issue: https://github.com/testing-library/react-testing-library/issues/1197#issuecomment-1693824628
   globalThis.jest = {
     ...globalThis.jest,
-    /**
-     * From react-intersection-observer/test-utils
+    // This is a bit of a hack to get Vitest fake timers setup to work with waitFor and findBy's
+    // GH Issue: https://github.com/testing-library/react-testing-library/issues/1197#issuecomment-1693824628
+    // @ts-expect-error - see above description
+    advanceTimersByTime: vi.advanceTimersByTime.bind(vi),
+
+    /*
+     * Since doing this hack means we now have a jest global defined, we must also redefine jest.fn to be vi.fn,
+     * otherwise the following lines of code in react-intersection-observer/src/test-utils.ts break:
+     *
      * // Use the exposed mock function. Currently, only supports Jest (`jest.fn`) and Vitest with globals (`vi.fn`).
-     * if (typeof jest !== 'undefined')
-     *   setupIntersectionMocking(jest.fn);
-     * else if (typeof vi !== 'undefined')
-     *   setupIntersectionMocking(vi.fn);
+     * if (typeof jest !== "undefined") setupIntersectionMocking(jest.fn);
+     * else if (typeof vi !== "undefined") {
+     * setupIntersectionMocking(vi.fn);
+     * }
      */
 
-    // @ts-expect-error - because of the ordering of the checks above
     fn: vi.fn.bind(vi),
-    advanceTimersByTime: vi.advanceTimersByTime.bind(vi),
   }
 })
 

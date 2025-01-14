@@ -1,4 +1,4 @@
-import { graphql } from 'msw'
+import { graphql, HttpResponse } from 'msw'
 
 import { repoCoverageHandler } from 'services/charts/mocks'
 import { commitErrored } from 'services/commit/mocks'
@@ -8,6 +8,7 @@ import {
   flagsSelectHandler,
 } from 'services/repo/mocks'
 import { randomUsersHandler } from 'services/users/mocks'
+import { Plans } from 'shared/utils/billing'
 
 export const handlers = [
   repoCoverageHandler,
@@ -19,10 +20,9 @@ export const handlers = [
 ]
 
 // pr page that never is left hanging in a "no files covered" when its stuck in a pending state
-graphql.query('CurrentUser', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('CurrentUser', () => {
+  return HttpResponse.json({
+    data: {
       me: {
         owner: { defaultOrgUsername: null },
         email: 'terry@codecov.io',
@@ -43,7 +43,7 @@ graphql.query('CurrentUser', (req, res, ctx) => {
           service: 'github',
           ownerid: 3456556,
           serviceId: '87824812',
-          plan: 'users-basic',
+          plan: Plans.USERS_BASIC,
           staff: true,
           hasYaml: false,
           bot: null,
@@ -61,14 +61,13 @@ graphql.query('CurrentUser', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('DetailOwner', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('DetailOwner', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         orgUploadToken: '9a9f1bb6-43e9-4766-b48b-aa16b449fbb1',
         ownerid: 5537,
@@ -77,14 +76,13 @@ graphql.query('DetailOwner', (req, res, ctx) => {
         isCurrentUserPartOfOrg: true,
         isAdmin: true,
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('DetailOwner2', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('DetailOwner2', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         orgUploadToken: '9a9f1bb6-43e9-4766-b48b-aa16b449fbb1',
         ownerid: 5537,
@@ -93,14 +91,13 @@ graphql.query('DetailOwner2', (req, res, ctx) => {
         isCurrentUserPartOfOrg: true,
         isAdmin: true,
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('PullPageData', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('PullPageData', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         isCurrentUserPartOfOrg: true,
         repository: {
@@ -119,14 +116,13 @@ graphql.query('PullPageData', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('PullHeadData', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('PullHeadData', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           pull: {
@@ -139,14 +135,13 @@ graphql.query('PullHeadData', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('Pull', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('Pull', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         isCurrentUserPartOfOrg: true,
         repository: {
@@ -166,7 +161,9 @@ graphql.query('Pull', (req, res, ctx) => {
               ciPassed: true,
               branchName: 'scott/cleanup',
               commitid: '04362ea9b08bcc61e3542c6a51eb65d586956bcc',
-              totals: { percentCovered: 94.97 },
+              coverageAnalytics: {
+                totals: { percentCovered: 94.97 },
+              },
               uploads: {
                 totalCount: 1,
                 edges: [
@@ -222,14 +219,13 @@ graphql.query('Pull', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('Pull2', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('Pull2', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         isCurrentUserPartOfOrg: true,
         repository: {
@@ -249,7 +245,9 @@ graphql.query('Pull2', (req, res, ctx) => {
               ciPassed: true,
               branchName: 'scott/cleanup',
               commitid: '04362ea9b08bcc61e3542c6a51eb65d586956bcc',
-              totals: { percentCovered: 94.97 },
+              coverageAnalytics: {
+                totals: { percentCovered: 94.97 },
+              },
               uploads: {
                 totalCount: 1,
                 edges: [
@@ -305,14 +303,13 @@ graphql.query('Pull2', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('GetCommits', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('GetCommits', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           commits: {
@@ -322,18 +319,17 @@ graphql.query('GetCommits', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('CurrentUser', (req, res, ctx) => {
-  return res(ctx.status(200), ctx.data())
+graphql.query('CurrentUser', () => {
+  return HttpResponse.json({ data: {} })
 })
 
-graphql.query('CommitDropdownSummary', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('CommitDropdownSummary', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
@@ -348,14 +344,13 @@ graphql.query('CommitDropdownSummary', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('PullDropdownSummary', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('PullDropdownSummary', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
@@ -370,34 +365,34 @@ graphql.query('PullDropdownSummary', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('CommitBADropdownSummary', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('CommitBADropdownSummary', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
           commit: {
-            bundleAnalysisCompareWithParent: {
-              __typename: 'BundleAnalysisComparison',
-              sizeDelta: 1,
-              loadTimeDelta: 2,
+            bundleAnalysis: {
+              bundleAnalysisCompareWithParent: {
+                __typename: 'BundleAnalysisComparison',
+                sizeDelta: 1,
+                loadTimeDelta: 2,
+              },
             },
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('PullBADropdownSummary', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('PullBADropdownSummary', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
@@ -413,78 +408,80 @@ graphql.query('PullBADropdownSummary', (req, res, ctx) => {
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('CommitBundleList', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('CommitBundleList', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
           commit: {
-            bundleAnalysisCompareWithParent: {
-              __typename: 'BundleAnalysisComparison',
-              bundles: [
-                {
-                  name: 'bundle.js',
-                  changeType: 'added',
-                  sizeDelta: 1,
-                  sizeTotal: 2,
-                  loadTimeDelta: 3,
-                  loadTimeTotal: 4,
-                },
-                {
-                  name: 'bundle.css',
-                  changeType: 'removed',
-                  sizeDelta: 5,
-                  sizeTotal: 6,
-                  loadTimeDelta: 7,
-                  loadTimeTotal: 8,
-                },
-              ],
+            bundleAnalysis: {
+              bundleAnalysisCompareWithParent: {
+                __typename: 'BundleAnalysisComparison',
+                bundles: [
+                  {
+                    name: 'bundle.js',
+                    changeType: 'added',
+                    sizeDelta: 1,
+                    sizeTotal: 2,
+                    loadTimeDelta: 3,
+                    loadTimeTotal: 4,
+                  },
+                  {
+                    name: 'bundle.css',
+                    changeType: 'removed',
+                    sizeDelta: 5,
+                    sizeTotal: 6,
+                    loadTimeDelta: 7,
+                    loadTimeTotal: 8,
+                  },
+                ],
+              },
             },
           },
         },
       },
-    })
-  )
+    },
+  })
 })
 
-graphql.query('PullBundleComparisonList', (req, res, ctx) => {
-  return res(
-    ctx.status(200),
-    ctx.data({
+graphql.query('PullBundleComparisonList', () => {
+  return HttpResponse.json({
+    data: {
       owner: {
         repository: {
           __typename: 'Repository',
           commit: {
-            bundleAnalysisCompareWithParent: {
-              __typename: 'BundleAnalysisComparison',
-              bundles: [
-                {
-                  name: 'bundle.js',
-                  changeType: 'added',
-                  sizeDelta: 1,
-                  sizeTotal: 2,
-                  loadTimeDelta: 3,
-                  loadTimeTotal: 4,
-                },
-                {
-                  name: 'bundle.css',
-                  changeType: 'removed',
-                  sizeDelta: 5,
-                  sizeTotal: 6,
-                  loadTimeDelta: 7,
-                  loadTimeTotal: 8,
-                },
-              ],
+            bundleAnalysis: {
+              bundleAnalysisCompareWithParent: {
+                __typename: 'BundleAnalysisComparison',
+                bundles: [
+                  {
+                    name: 'bundle.js',
+                    changeType: 'added',
+                    sizeDelta: 1,
+                    sizeTotal: 2,
+                    loadTimeDelta: 3,
+                    loadTimeTotal: 4,
+                  },
+                  {
+                    name: 'bundle.css',
+                    changeType: 'removed',
+                    sizeDelta: 5,
+                    sizeTotal: 6,
+                    loadTimeDelta: 7,
+                    loadTimeTotal: 8,
+                  },
+                ],
+              },
             },
           },
         },
       },
-    })
-  )
+    },
+  })
 })

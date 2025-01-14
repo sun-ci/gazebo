@@ -18,11 +18,13 @@ import {
   RepoOwnerNotActivatedErrorSchema,
 } from 'services/repo/schemas'
 import Api from 'shared/api'
+import { rejectNetworkError } from 'shared/api/helpers'
 import {
   ErrorCodeEnum,
   UploadStateEnum,
   UploadTypeEnum,
 } from 'shared/utils/commit'
+import { Upload } from 'shared/utils/extractUploads'
 import { mapEdges } from 'shared/utils/graphql'
 import A from 'ui/A'
 
@@ -43,13 +45,7 @@ const UploadErrorSchema = z.object({
 })
 
 const ErrorsSchema = z.object({
-  edges: z.array(
-    z
-      .object({
-        node: UploadErrorSchema,
-      })
-      .nullable()
-  ),
+  edges: z.array(z.object({ node: UploadErrorSchema }).nullable()),
 })
 
 const UploadSchema = z.object({
@@ -69,13 +65,7 @@ const UploadSchema = z.object({
 })
 
 const UploadsSchema = z.object({
-  edges: z.array(
-    z
-      .object({
-        node: UploadSchema,
-      })
-      .nullable()
-  ),
+  edges: z.array(z.object({ node: UploadSchema }).nullable()),
 })
 
 const ImpactedFileSchema = z
@@ -92,7 +82,7 @@ export type ImpactedFileType = z.infer<typeof ImpactedFileSchema>
 
 const ImpactedFileResultsSchema = z.object({
   __typename: z.literal('ImpactedFiles'),
-  results: z.array(ImpactedFileSchema.nullable()),
+  results: z.array(ImpactedFileSchema.nullable()).nullable(),
 })
 
 const ImpactedFileResultsUnionSchema = z.discriminatedUnion('__typename', [
@@ -124,7 +114,11 @@ const CompareWithParentSchema = z.discriminatedUnion('__typename', [
 ])
 
 const CommitSchema = z.object({
-  totals: CoverageObjSchema.nullable(),
+  coverageAnalytics: z
+    .object({
+      totals: CoverageObjSchema.nullable(),
+    })
+    .nullable(),
   state: z.string().nullable(),
   commitid: z.string(),
   pullId: z.number().nullable(),
@@ -141,7 +135,11 @@ const CommitSchema = z.object({
   parent: z
     .object({
       commitid: z.string(),
-      totals: CoverageObjSchema.nullable(),
+      coverageAnalytics: z
+        .object({
+          totals: CoverageObjSchema.nullable(),
+        })
+        .nullable(),
     })
     .nullable(),
   compareWithParent: CompareWithParentSchema.nullable(),
@@ -179,8 +177,10 @@ query Commit(
       __typename
       ... on Repository {
         commit(id: $commitid) {
-          totals {
-            coverage: percentCovered # Absolute coverage of the commit
+          coverageAnalytics {
+            totals {
+              coverage: percentCovered # Absolute coverage of the commit
+            }
           }
           state
           commitid
@@ -219,8 +219,10 @@ query Commit(
           ciPassed
           parent {
             commitid # commitid of the parent, used for the comparison
-            totals {
-              coverage: percentCovered # coverage of the parent
+            coverageAnalytics {
+              totals {
+                coverage: percentCovered # coverage of the parent
+              }
             }
           }
           compareWithParent {
@@ -354,47 +356,55 @@ export function useCommit({
         const parsedRes = RequestSchema.safeParse(res?.data)
 
         if (!parsedRes.success) {
-          return Promise.reject({
+          return rejectNetworkError({
             status: 404,
-            data: null,
+            data: {},
+            dev: 'useCommit - 404 failed to parse',
+            error: parsedRes.error,
           })
         }
 
         const data = parsedRes.data
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
-          return Promise.reject({
+          return rejectNetworkError({
             status: 404,
             data: {},
+            dev: 'useCommit - 404 not found',
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
-          return Promise.reject({
+          return rejectNetworkError({
             status: 403,
             data: {
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>
               ),
             },
+            dev: 'useCommit - 403 owner not activated',
           })
         }
 
         const commit = data?.owner?.repository?.commit
         const uploadEdges = data?.owner?.repository?.commit?.uploads
 
-        const uploads = mapEdges(uploadEdges).map((upload) => {
-          const errors = mapEdges(upload?.errors)
+        const uploads: Upload[] = []
+        mapEdges(uploadEdges).forEach((upload) => {
+          if (upload === null) {
+            return
+          }
+          const errors = mapEdges(upload.errors)
 
-          return {
+          uploads.push({
             ...upload,
             errors: errors,
-          }
+          })
         })
 
         if (!commit) {

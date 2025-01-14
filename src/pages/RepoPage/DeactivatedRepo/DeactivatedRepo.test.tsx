@@ -1,8 +1,8 @@
 import { render, screen } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import DeactivatedRepo from './DeactivatedRepo'
@@ -34,7 +34,7 @@ afterAll(() => {
 describe('DeactivatedRepo', () => {
   function setup(isCurrentUserPartOfOrg = true) {
     server.use(
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -68,7 +68,7 @@ describe('DeactivatedRepo', () => {
     it('renders corresponding message', async () => {
       render(<DeactivatedRepo />, { wrapper })
 
-      const message = await screen.findByText(/To reactivate the repo go to/)
+      const message = await screen.findByText(/To resume uploading to it/)
       expect(message).toBeInTheDocument()
     })
   })

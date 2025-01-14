@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useCodecovAIInstalledRepos } from './useCodecovAIInstalledRepos'
 
@@ -46,7 +46,7 @@ interface SetupArgs {
 describe('useCodecovAIInstalledRepos', () => {
   function setup({ isUnsuccessfulParseError = false }: SetupArgs) {
     server.use(
-      graphql.query('GetCodecovAIInstalledRepos', (info) => {
+      graphql.query('GetCodecovAIInstalledRepos', () => {
         if (isUnsuccessfulParseError) {
           return HttpResponse.json({ data: mockUnsuccessfulParseError })
         }
@@ -76,7 +76,7 @@ describe('useCodecovAIInstalledRepos', () => {
   })
 
   describe('unsuccessful parse of zod schema', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null

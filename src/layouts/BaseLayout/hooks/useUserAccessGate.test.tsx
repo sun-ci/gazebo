@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { delay, graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { delay, graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import config from 'config'
 
 import { User } from 'services/user'
+import { Plans } from 'shared/utils/billing'
 
 import { useUserAccessGate } from './useUserAccessGate'
 
@@ -30,7 +31,7 @@ const queryClient = new QueryClient({
 })
 const server = setupServer()
 
-let testLocation: { pathname: string; search: string } = {
+const testLocation: { pathname: string; search: string } = {
   pathname: '',
   search: '',
 }
@@ -73,7 +74,7 @@ const mockTrackingMetadata = {
   service: 'github',
   ownerid: 123,
   serviceId: '123',
-  plan: 'users-basic',
+  plan: Plans.USERS_BASIC,
   staff: false,
   hasYaml: false,
   bot: null,
@@ -254,11 +255,11 @@ describe('useUserAccessGate', () => {
     const mockMutationVariables = vi.fn()
 
     server.use(
-      http.get('/internal/user', (info) => {
+      http.get('/internal/user', () => {
         return HttpResponse.json(internalUser)
       }),
 
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: user })
       }),
       graphql.mutation('updateDefaultOrganization', async (info) => {

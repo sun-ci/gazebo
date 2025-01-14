@@ -1,33 +1,31 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import React from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TrialStatuses } from 'services/account'
-import { TierNames } from 'services/tier'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import ProPlanFeedbackBanner from './ProPlanFeedbackBanner'
-
-const mockProTier = {
-  owner: {
-    plan: {
-      tierName: TierNames.PRO,
-    },
-  },
-}
 
 const mockTrialData = {
   hasPrivateRepos: true,
   plan: {
+    isEnterprisePlan: false,
+    isFreePlan: false,
+    isProPlan: true,
+    isSentryPlan: false,
+    isTeamPlan: false,
+    isTrialPlan: false,
     baseUnitPrice: 10,
     benefits: [],
-    billingRate: 'monthly',
+    billingRate: BillingRate.MONTHLY,
     marketingName: 'Users Basic',
     monthlyUploadLimit: 250,
-    value: 'users-basic',
+    value: Plans.USERS_PR_INAPPM,
     trialStatus: TrialStatuses.EXPIRED,
     trialStartDate: '2023-01-01T08:55:25',
     trialEndDate: '2023-01-10T08:55:25',
@@ -39,10 +37,10 @@ const mockTrialData = {
   pretrialPlan: {
     baseUnitPrice: 10,
     benefits: [],
-    billingRate: 'monthly',
+    billingRate: BillingRate.MONTHLY,
     marketingName: 'Users Basic',
     monthlyUploadLimit: 250,
-    value: 'users-basic',
+    value: Plans.USERS_BASIC,
   },
 }
 
@@ -77,11 +75,8 @@ describe('ProPlanFeedbackBanner', () => {
     const mockGetItem = vi.spyOn(window.localStorage.__proto__, 'getItem')
 
     server.use(
-      graphql.query('OwnerTier', (info) => {
-        return HttpResponse.json({ data: mockProTier })
-      }),
-      graphql.query('GetPlanData', (info) => {
-        return HttpResponse.json({ data: mockTrialData })
+      graphql.query('GetPlanData', () => {
+        return HttpResponse.json({ data: { owner: { ...mockTrialData } } })
       })
     )
 

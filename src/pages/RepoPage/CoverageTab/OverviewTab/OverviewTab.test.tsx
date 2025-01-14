@@ -1,12 +1,31 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames, TTierNames } from 'services/tier'
 
 import CoverageOverviewTab from './OverviewTab'
+
+declare global {
+  interface Window {
+    ResizeObserver: unknown
+  }
+}
+
+vi.mock('recharts', async () => {
+  const OriginalModule = await vi.importActual('recharts')
+  return {
+    ...OriginalModule,
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+      // @ts-expect-error - something is off with the import actual but this does exist, and this mock does work
+      <OriginalModule.ResponsiveContainer width={800} height={800}>
+        {children}
+      </OriginalModule.ResponsiveContainer>
+    ),
+  }
+})
 
 vi.mock('./Summary', () => ({ default: () => 'Summary' }))
 vi.mock('./SummaryTeamPlan', () => ({ default: () => 'SummaryTeamPlan' }))
@@ -104,30 +123,9 @@ const branchesMock = {
       __typename: 'Repository',
       branches: {
         edges: [
-          {
-            node: {
-              name: 'main',
-              head: {
-                commitid: '1',
-              },
-            },
-          },
-          {
-            node: {
-              name: 'dummy',
-              head: {
-                commitid: '2',
-              },
-            },
-          },
-          {
-            node: {
-              name: 'dummy2',
-              head: {
-                commitid: '3',
-              },
-            },
-          },
+          { node: { name: 'main', head: { commitid: '1' } } },
+          { node: { name: 'dummy', head: { commitid: '2' } } },
+          { node: { name: 'dummy2', head: { commitid: '3' } } },
         ],
         pageInfo: {
           hasNextPage: false,
@@ -188,22 +186,10 @@ const mockBranchMeasurements = {
       __typename: 'Repository',
       coverageAnalytics: {
         measurements: [
-          {
-            timestamp: '2023-01-01T00:00:00+00:00',
-            max: 85,
-          },
-          {
-            timestamp: '2023-01-02T00:00:00+00:00',
-            max: 80,
-          },
-          {
-            timestamp: '2023-01-03T00:00:00+00:00',
-            max: 90,
-          },
-          {
-            timestamp: '2023-01-04T00:00:00+00:00',
-            max: 100,
-          },
+          { timestamp: '2023-01-01T00:00:00+00:00', max: 85 },
+          { timestamp: '2023-01-02T00:00:00+00:00', max: 80 },
+          { timestamp: '2023-01-03T00:00:00+00:00', max: 90 },
+          { timestamp: '2023-01-04T00:00:00+00:00', max: 100 },
         ],
       },
     },
@@ -230,13 +216,7 @@ const mockCoverageTabData = (fileCount = 10) => ({
   owner: {
     repository: {
       __typename: 'Repository',
-      branch: {
-        head: {
-          totals: {
-            fileCount,
-          },
-        },
-      },
+      branch: { head: { coverageAnalytics: { totals: { fileCount } } } },
     },
   },
 })
@@ -249,16 +229,12 @@ const mockBranchComponents = {
         name: 'main',
         head: {
           commitid: 'commit-123',
-          components: [
-            {
-              id: 'compOneId',
-              name: 'compOneName',
-            },
-            {
-              id: 'compTwoId',
-              name: 'compTwoName',
-            },
-          ],
+          coverageAnalytics: {
+            components: [
+              { id: 'compOneId', name: 'compOneName' },
+              { id: 'compTwoId', name: 'compTwoName' },
+            ],
+          },
         },
       },
     },
@@ -270,17 +246,8 @@ const mockFlagSelect = {
     repository: {
       __typename: 'Repository',
       flags: {
-        edges: [
-          {
-            node: {
-              name: 'flag-1',
-            },
-          },
-        ],
-        pageInfo: {
-          hasNextPage: true,
-          endCursor: '1-flag-1',
-        },
+        edges: [{ node: { name: 'flag-1' } }],
+        pageInfo: { hasNextPage: true, endCursor: '1-flag-1' },
       },
     },
   },
@@ -290,8 +257,10 @@ const mockBackfillFlag = {
   owner: {
     repository: {
       __typename: 'Repository',
-      flagsMeasurementsActive: true,
-      flagsMeasurementsBackfilled: true,
+      coverageAnalytics: {
+        flagsMeasurementsActive: true,
+        flagsMeasurementsBackfilled: true,
+      },
     },
   },
 }
@@ -325,6 +294,29 @@ beforeAll(() => {
   server.listen({ onUnhandledRequest: 'warn' })
 })
 
+beforeEach(() => {
+  /**
+   * ResizeObserver is not available, so we have to create a mock to avoid error coming
+   * from `react-resize-detector`.
+   * @see https://github.com/maslianok/react-resize-detector/issues/145
+   *
+   * This mock also allow us to use {@link notifyResizeObserverChange} to fire changes
+   * from inside our test.
+   */
+  const resizeObserverMock = vi.fn().mockImplementation(() => {
+    return {
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+    }
+  })
+
+  // @ts-expect-error - deleting so we can override with the mock
+  delete window.ResizeObserver
+
+  window.ResizeObserver = resizeObserverMock
+})
+
 afterEach(() => {
   queryClient.clear()
   server.resetHandlers()
@@ -349,63 +341,63 @@ describe('Coverage overview tab', () => {
     fileCount = 10,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({
           data: mockRepo(isPrivate, isFirstPullRequest),
         })
       }),
-      graphql.query('GetBranches', (info) => {
+      graphql.query('GetBranches', () => {
         return HttpResponse.json({ data: branchesMock })
       }),
-      graphql.query('GetBranch', (info) => {
+      graphql.query('GetBranch', () => {
         return HttpResponse.json({
           data: {
             owner: { repository: { ...branchMock } },
           },
         })
       }),
-      graphql.query('BranchContents', (info) => {
+      graphql.query('BranchContents', () => {
         return HttpResponse.json({ data: branchesContentsMock })
       }),
-      graphql.query('RepoConfig', (info) => {
+      graphql.query('RepoConfig', () => {
         return HttpResponse.json({ data: repoConfigMock })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: overviewMock })
       }),
-      graphql.query('GetRepoCoverage', (info) => {
+      graphql.query('GetRepoCoverage', () => {
         return HttpResponse.json({ data: { owner: null } })
       }),
-      graphql.query('GetBranchCoverageMeasurements', (info) => {
+      graphql.query('GetBranchCoverageMeasurements', () => {
         return HttpResponse.json({ data: mockBranchMeasurements })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockBackfillFlag })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({
           data: { owner: { plan: { tierName: tierValue } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({ data: mockRepoSettings(isPrivate) })
       }),
-      graphql.query('CoverageTabData', (info) => {
+      graphql.query('CoverageTabData', () => {
         return HttpResponse.json({ data: mockCoverageTabData(fileCount) })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
       }),
-      graphql.query('GetBranchComponents', (info) => {
+      graphql.query('GetBranchComponents', () => {
         return HttpResponse.json({ data: mockBranchComponents })
       }),
-      graphql.query('FlagsSelect', (info) => {
+      graphql.query('FlagsSelect', () => {
         return HttpResponse.json({ data: mockFlagSelect })
       }),
-      http.get('/internal/:provider/:owner/:repo/coverage/tree', (info) => {
+      http.get('/internal/:provider/:owner/:repo/coverage/tree', () => {
         return HttpResponse.json({ data: treeMock })
       }),
-      http.post('/internal/charts/:provider/:owner/coverage/:repo', (info) => {
+      http.post('/internal/charts/:provider/:owner/coverage/:repo', () => {
         return HttpResponse.json({ data: {} })
       })
     )
@@ -461,7 +453,7 @@ describe('Coverage overview tab', () => {
       wrapper: wrapper(['/gh/test-org/repoName']),
     })
 
-    const coverageAreaChart = await screen.findByTestId('coverage-area-chart')
+    const coverageAreaChart = await screen.findByTestId('chart-container')
     expect(coverageAreaChart).toBeInTheDocument()
   })
 
@@ -484,7 +476,7 @@ describe('Coverage overview tab', () => {
         wrapper: wrapper(['/gh/test-org/repoName']),
       })
 
-      const coverageChart = screen.queryByTestId('coverage-area-chart')
+      const coverageChart = screen.queryByTestId('chart-container')
       expect(coverageChart).not.toBeInTheDocument()
     })
   })

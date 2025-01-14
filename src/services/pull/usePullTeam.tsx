@@ -14,6 +14,7 @@ import {
   RepoOwnerNotActivatedErrorSchema,
 } from 'services/repo/schemas'
 import Api from 'shared/api'
+import { NetworkErrorObject } from 'shared/api/helpers'
 import A from 'ui/A'
 
 import { usePullCompareTotalsTeam } from './usePullCompareTotalsTeam'
@@ -29,10 +30,10 @@ export const OrderingParameter = {
   PATCH_COVERAGE: 'PATCH_COVERAGE',
 } as const
 
-const ImpactedFilesOrdering = z.object({
-  direction: z.nativeEnum(OrderingDirection).optional(),
-  parameter: z.nativeEnum(OrderingParameter).optional(),
-})
+interface ImpactedFilesOrdering {
+  direction?: (typeof OrderingDirection)[keyof typeof OrderingDirection]
+  parameter?: (typeof OrderingParameter)[keyof typeof OrderingParameter]
+}
 
 const CoverageObjSchema = z
   .object({
@@ -54,7 +55,7 @@ export type ImpactedFile = z.infer<typeof ImpactedFileSchema>
 const ImpactedFilesSchema = z.discriminatedUnion('__typename', [
   z.object({
     __typename: z.literal('ImpactedFiles'),
-    results: z.array(ImpactedFileSchema),
+    results: z.array(ImpactedFileSchema).nullable(),
   }),
   z.object({
     __typename: z.literal('UnknownFlags'),
@@ -176,7 +177,7 @@ interface UsePullTeamArgs {
   pullId: string
   filters?: {
     hasUnintendedChanges?: boolean
-    ordering?: z.infer<typeof ImpactedFilesOrdering>
+    ordering?: ImpactedFilesOrdering
   }
   refetchInterval?: number
 }
@@ -211,8 +212,9 @@ export function usePullTeam({
         if (!parsedRes.success) {
           return Promise.reject({
             status: 404,
-            data: null,
-          })
+            data: {},
+            dev: 'usePullTeam - 404 failed to parse',
+          } satisfies NetworkErrorObject)
         }
 
         const data = parsedRes.data
@@ -221,7 +223,8 @@ export function usePullTeam({
           return Promise.reject({
             status: 404,
             data: {},
-          })
+            dev: 'usePullTeam - 404 not found',
+          } satisfies NetworkErrorObject)
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
@@ -231,13 +234,14 @@ export function usePullTeam({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>
               ),
             },
-          })
+            dev: 'usePullTeam - 403 owner not activated',
+          } satisfies NetworkErrorObject)
         }
 
         const pull = data?.owner?.repository?.pull

@@ -1,10 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useSingularImpactedFileComparison } from './useSingularImpactedFileComparison'
-import { transformImpactedFileData } from './utils'
 
 console.error = () => {}
 
@@ -12,7 +11,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 )
 
@@ -123,7 +122,7 @@ describe('useSingularImpactedFileComparison', () => {
     isMissingBaseCommit = false,
   }) {
     server.use(
-      graphql.query('ImpactedFileComparison', (info) => {
+      graphql.query('ImpactedFileComparison', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -164,11 +163,27 @@ describe('useSingularImpactedFileComparison', () => {
         await waitFor(() => !result.current.isLoading)
 
         await waitFor(() =>
-          expect(result.current.data).toEqual(
-            transformImpactedFileData(
-              mockResponse.owner.repository.pull.compareWithBase.impactedFile
-            )
-          )
+          expect(result.current.data).toEqual({
+            fileLabel: null,
+            hashedPath: 'hashedPath',
+            headName: 'headName',
+            isCriticalFile: false,
+            segments: [
+              {
+                hasUnintendedChanges: false,
+                header: 'header',
+                lines: [
+                  {
+                    baseCoverage: 'M',
+                    baseNumber: '1',
+                    content: 'content',
+                    headCoverage: 'H',
+                    headNumber: '1',
+                  },
+                ],
+              },
+            ],
+          })
         )
       })
     })

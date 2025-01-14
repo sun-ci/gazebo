@@ -20,8 +20,15 @@ const CoverageMessage: React.FC = () => {
   })
   const comparison = data?.commit?.compareWithParent
   const uploadErrorCount = data?.uploadErrorCount
+  const invalidYamlError = data?.yamlErrors?.find(
+    (err) => err?.errorCode === 'invalid_yaml'
+  )
 
-  if (uploadErrorCount && uploadErrorCount > 0) {
+  if (invalidYamlError) {
+    return <>data unavailable due to invalid yaml &#x26A0;&#xFE0F;</>
+  }
+
+  if (uploadErrorCount) {
     if (uploadErrorCount === 1) {
       return (
         <>{uploadErrorCount} upload has failed to process &#x26A0;&#xFE0F;</>

@@ -1,4 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import {
+  queryOptions as queryOptionsV5,
+  useSuspenseQuery as useSuspenseQueryV5,
+} from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
 import { MissingHeadReportSchema } from 'services/comparison'
@@ -8,7 +11,7 @@ import {
   useRepoOverview,
 } from 'services/repo'
 import Api from 'shared/api/api'
-import type { NetworkErrorObject } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/helpers'
 import A from 'ui/A'
 
 const BundleDataSchema = z.object({
@@ -44,7 +47,11 @@ const RepositorySchema = z.object({
     .object({
       head: z
         .object({
-          bundleAnalysisReport: BundleReportSchema.nullable(),
+          bundleAnalysis: z
+            .object({
+              bundleAnalysisReport: BundleReportSchema.nullable(),
+            })
+            .nullable(),
         })
         .nullable(),
     })
@@ -79,26 +86,28 @@ query BundleSummary(
       ... on Repository {
         branch(name: $branch) {
           head {
-            bundleAnalysisReport {
-              __typename
-              ... on BundleAnalysisReport {
-                bundle(name: $bundle, filters: $filters) {
-                  name
-                  moduleCount
-                  bundleData {
-                    loadTime {
-                      threeG
-                      highSpeed
-                    }
-                    size {
-                      gzip
-                      uncompress
+            bundleAnalysis {
+              bundleAnalysisReport {
+                __typename
+                ... on BundleAnalysisReport {
+                  bundle(name: $bundle, filters: $filters) {
+                    name
+                    moduleCount
+                    bundleData {
+                      loadTime {
+                        threeG
+                        highSpeed
+                      }
+                      size {
+                        gzip
+                        uncompress
+                      }
                     }
                   }
                 }
-              }
-              ... on MissingHeadReport {
-                message
+                ... on MissingHeadReport {
+                  message
+                }
               }
             }
           }
@@ -114,6 +123,87 @@ query BundleSummary(
   }
 }`
 
+interface BundleSummaryQueryOptsArgs {
+  provider: string
+  owner: string
+  repo: string
+  branch: string | null | undefined
+  bundle: string
+  filters?: {
+    reportGroups?: string[]
+    loadTypes?: string[]
+  }
+}
+
+export const BundleSummaryQueryOpts = ({
+  provider,
+  owner,
+  repo,
+  branch,
+  bundle,
+  filters,
+}: BundleSummaryQueryOptsArgs) =>
+  queryOptionsV5({
+    queryKey: ['BundleSummary', provider, owner, repo, branch, bundle, filters],
+    queryFn: ({ signal }) =>
+      Api.graphql({
+        provider,
+        query,
+        signal,
+        variables: { owner, repo, branch, bundle, filters },
+      }).then((res) => {
+        const parsedData = RequestSchema.safeParse(res?.data)
+
+        if (!parsedData.success) {
+          return rejectNetworkError({
+            status: 404,
+            data: {},
+            dev: 'BundleSummaryQueryOpts - 404 Failed to parse data',
+            error: parsedData.error,
+          })
+        }
+
+        const data = parsedData.data
+
+        if (data?.owner?.repository?.__typename === 'NotFoundError') {
+          return rejectNetworkError({
+            status: 404,
+            data: {},
+            dev: 'BundleSummaryQueryOpts - 404 Not found error',
+          })
+        }
+
+        if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
+          return rejectNetworkError({
+            status: 403,
+            data: {
+              detail: (
+                <p>
+                  Activation is required to view this repo, please{' '}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
+                  <A to={{ pageName: 'membersTab' }}>click here </A> to activate
+                  your account.
+                </p>
+              ),
+            },
+            dev: 'BundleSummaryQueryOpts - 403 Owner not activated',
+          })
+        }
+
+        let bundleSummary = null
+        if (
+          data?.owner?.repository?.branch?.head?.bundleAnalysis
+            ?.bundleAnalysisReport?.__typename === 'BundleAnalysisReport'
+        ) {
+          bundleSummary =
+            data.owner.repository.branch.head.bundleAnalysis
+              .bundleAnalysisReport.bundle
+        }
+
+        return { bundleSummary }
+      }),
+  })
+
 interface UseBundleSummaryArgs {
   provider: string
   owner: string
@@ -124,9 +214,6 @@ interface UseBundleSummaryArgs {
     reportGroups?: string[]
     loadTypes?: string[]
   }
-  opts?: {
-    enabled?: boolean
-  }
 }
 
 export const useBundleSummary = ({
@@ -136,7 +223,6 @@ export const useBundleSummary = ({
   branch: branchParam,
   bundle,
   filters = {},
-  opts = {},
 }: UseBundleSummaryArgs) => {
   const { data: overview } = useRepoOverview({
     provider,
@@ -149,63 +235,14 @@ export const useBundleSummary = ({
 
   const branch = branchParam ?? overview?.defaultBranch
 
-  return useQuery({
-    queryKey: ['BundleSummary', provider, owner, repo, branch, bundle, filters],
-    queryFn: ({ signal }) =>
-      Api.graphql({
-        provider,
-        query,
-        signal,
-        variables: { owner, repo, branch, bundle, filters },
-      }).then((res) => {
-        const parsedData = RequestSchema.safeParse(res?.data)
-
-        if (!parsedData.success) {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useBundleSummary - 404 Failed to parse data',
-          } satisfies NetworkErrorObject)
-        }
-
-        const data = parsedData.data
-
-        if (data?.owner?.repository?.__typename === 'NotFoundError') {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useBundleSummary - 404 Not found error',
-          } satisfies NetworkErrorObject)
-        }
-
-        if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
-          return Promise.reject({
-            status: 403,
-            data: {
-              detail: (
-                <p>
-                  Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
-                  <A to={{ pageName: 'membersTab' }}>click here </A> to activate
-                  your account.
-                </p>
-              ),
-            },
-            dev: 'useBundleSummary - 403 Owner not activated',
-          } satisfies NetworkErrorObject)
-        }
-
-        let bundleSummary = null
-        if (
-          data?.owner?.repository?.branch?.head?.bundleAnalysisReport
-            ?.__typename === 'BundleAnalysisReport'
-        ) {
-          bundleSummary =
-            data.owner.repository.branch.head.bundleAnalysisReport.bundle
-        }
-
-        return { bundleSummary }
-      }),
-    enabled: opts?.enabled,
-  })
+  return useSuspenseQueryV5(
+    BundleSummaryQueryOpts({
+      provider,
+      owner,
+      repo,
+      branch,
+      bundle,
+      filters,
+    })
+  )
 }

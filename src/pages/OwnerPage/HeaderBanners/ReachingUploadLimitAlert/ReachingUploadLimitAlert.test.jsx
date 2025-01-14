@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TrialStatuses } from 'services/account'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import ReachingUploadLimitAlert from './ReachingUploadLimitAlert'
 
@@ -25,10 +26,16 @@ const wrapper = ({ children }) => (
 const mockPlanDataResponse = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Pro Team',
   monthlyUploadLimit: 341,
-  value: 'test-plan',
+  value: Plans.USERS_PR_INAPPM,
+  isEnterprisePlan: false,
+  isFreePlan: false,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTeamPlan: false,
+  isTrialPlan: false,
   trialStatus: TrialStatuses.NOT_STARTED,
   trialStartDate: '',
   trialEndDate: '',
@@ -54,7 +61,7 @@ afterAll(() => {
 describe('ReachingUploadLimitAlert', () => {
   function setup() {
     server.use(
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {

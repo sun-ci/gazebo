@@ -112,19 +112,6 @@ export const SubscriptionDetailSchema = z
   })
   .nullable()
 
-export const PlanSchema = z
-  .object({
-    baseUnitPrice: z.number(),
-    benefits: z.array(z.string()),
-    billingRate: z.string().nullable(),
-    marketingName: z.string(),
-    monthlyUploadLimit: z.number().nullish(),
-    quantity: z.number().nullish(),
-    value: z.string(),
-    trialDays: z.number().nullish(),
-  })
-  .nullable()
-
 export const AccountDetailsSchema = z.object({
   activatedStudentCount: z.number(),
   activatedUserCount: z.number(),
@@ -135,13 +122,12 @@ export const AccountDetailsSchema = z.object({
   integrationId: z.number().nullable(),
   name: z.string().nullable(),
   nbActivePrivateRepos: z.number().nullable(),
-  plan: PlanSchema,
   planAutoActivate: z.boolean().nullable(),
   planProvider: z.string().nullable(),
   repoTotalCredits: z.number(),
   rootOrganization: z
     .object({
-      plan: PlanSchema,
+      username: z.string().nullish(),
     })
     .nullable(),
   scheduleDetail: z

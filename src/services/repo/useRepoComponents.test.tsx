@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type MockInstance } from 'vitest'
 
@@ -76,7 +76,7 @@ describe('ComponentMeasurements', () => {
     isNotFoundError = false,
   } = {}) {
     server.use(
-      graphql.query('ComponentMeasurements', (info) => {
+      graphql.query('ComponentMeasurements', () => {
         if (isSchemaInvalid) {
           return HttpResponse.json({})
         }
@@ -111,7 +111,9 @@ describe('ComponentMeasurements', () => {
             owner: {
               repository: {
                 __typename: 'Repository',
-                components: expectedData,
+                coverageAnalytics: {
+                  components: expectedData,
+                },
               },
             },
           },

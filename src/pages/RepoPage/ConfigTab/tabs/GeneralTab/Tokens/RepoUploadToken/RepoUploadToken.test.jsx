@@ -2,8 +2,8 @@ import { render, screen, waitFor } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import RepoUploadToken from './RepoUploadToken'
@@ -50,9 +50,9 @@ afterAll(() => {
 
 describe('RepoUploadToken', () => {
   function setup(
-    { uploadToken = undefined, triggerError = false } = {
-      uploadToken: undefined,
+    { triggerError = false, uploadTokenRequired = false } = {
       triggerError: false,
+      uploadTokenRequired: false,
     }
   ) {
     const user = userEvent.setup()
@@ -62,6 +62,17 @@ describe('RepoUploadToken', () => {
     mocks.useAddNotification.mockReturnValue(addNotification)
 
     server.use(
+      graphql.query('GetUploadTokenRequired', () => {
+        return HttpResponse.json({
+          data: {
+            owner: {
+              orgUploadToken: 'test-mock-org-upload-token',
+              isAdmin: true,
+              uploadTokenRequired,
+            },
+          },
+        })
+      }),
       graphql.mutation('RegenerateRepositoryUploadToken', (info) => {
         mutate(info.request.variables)
         if (triggerError) {
@@ -107,7 +118,7 @@ describe('RepoUploadToken', () => {
       expect(p).toBeInTheDocument()
 
       const addTokenToCICD = screen.getByText(
-        'If you’d like to add the token directly to your CI/CD Environment:'
+        "If you'd like to add the token directly to your CI/CD Environment:"
       )
       expect(addTokenToCICD).toBeInTheDocument()
     })
@@ -126,6 +137,28 @@ describe('RepoUploadToken', () => {
 
       const regenerate = screen.getByRole('button', { name: 'Regenerate' })
       expect(regenerate).toBeInTheDocument()
+    })
+
+    it('renders upload token required message when uploadTokenRequired is false', async () => {
+      setup({ uploadTokenRequired: false })
+      render(<RepoUploadToken uploadToken="old token" />, { wrapper })
+
+      const message = await screen.findByText(
+        'Uploading with token is now not required. You can upload without a token. Contact your admins to manage the global upload token settings.'
+      )
+      expect(message).toBeInTheDocument()
+    })
+
+    it('does not render upload token required message when uploadTokenRequired is true', async () => {
+      setup({ uploadTokenRequired: true })
+      render(<RepoUploadToken uploadToken="old token" />, { wrapper })
+
+      await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+
+      const message = screen.queryByText(
+        'Uploading with token is now not required. You can upload without a token. Contact your admins to manage the global upload token settings.'
+      )
+      expect(message).not.toBeInTheDocument()
     })
   })
 

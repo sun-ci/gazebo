@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useCoverageTabData } from './useCoverageTabData'
@@ -28,8 +28,10 @@ const mockCoverageTabData = {
       __typename: 'Repository',
       branch: {
         head: {
-          totals: {
-            fileCount: 10,
+          coverageAnalytics: {
+            totals: {
+              fileCount: 10,
+            },
           },
         },
       },
@@ -115,7 +117,7 @@ describe('useCoverageTabData', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('CoverageTabData', (info) => {
+      graphql.query('CoverageTabData', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -128,7 +130,7 @@ describe('useCoverageTabData', () => {
           return HttpResponse.json({ data: mockCoverageTabData })
         }
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
       })
     )
@@ -154,8 +156,10 @@ describe('useCoverageTabData', () => {
           expect(result.current.data).toEqual({
             branch: {
               head: {
-                totals: {
-                  fileCount: 10,
+                coverageAnalytics: {
+                  totals: {
+                    fileCount: 10,
+                  },
                 },
               },
             },
@@ -182,8 +186,10 @@ describe('useCoverageTabData', () => {
           expect(result.current.data).toEqual({
             branch: {
               head: {
-                totals: {
-                  fileCount: 10,
+                coverageAnalytics: {
+                  totals: {
+                    fileCount: 10,
+                  },
                 },
               },
             },
@@ -194,7 +200,7 @@ describe('useCoverageTabData', () => {
   })
 
   describe('returns NotFoundError __typename', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null
@@ -230,7 +236,7 @@ describe('useCoverageTabData', () => {
   })
 
   describe('returns OwnerNotActivatedError __typename', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null
@@ -266,7 +272,7 @@ describe('useCoverageTabData', () => {
   })
 
   describe('unsuccessful parse of zod schema', () => {
-    let oldConsoleError = console.error
+    const oldConsoleError = console.error
 
     beforeEach(() => {
       console.error = () => null

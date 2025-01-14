@@ -25,7 +25,7 @@ import A from 'ui/A'
 import Icon from 'ui/Icon'
 import Spinner from 'ui/Spinner'
 
-const PullFileDiff = lazy(() => import('../FileDiff'))
+const PullFileDiff = lazy(() => import('../PullFileDiff'))
 
 const columnHelper = createColumnHelper<ImpactedFile>()
 
@@ -88,7 +88,7 @@ function getColumns({ pullId }: { pullId: string }) {
                 variant="solid"
               />
             </span>
-            {/* @ts-expect-error */}
+            {/* @ts-expect-error - A hasn't been typed yet */}
             <A
               to={{
                 pageName: 'pullFileView',
@@ -185,13 +185,13 @@ export default function FilesChangedTableTeam() {
       pullData?.pull?.compareWithBase?.impactedFiles?.__typename ===
         'ImpactedFiles'
     ) {
-      return pullData?.pull?.compareWithBase?.impactedFiles?.results
+      return pullData?.pull?.compareWithBase?.impactedFiles?.results ?? []
     }
     return []
   }, [pullData?.pull?.compareWithBase])
 
   useEffect(() => {
-    if (data.length > 0 && currentlySelectedFile) {
+    if (data && data.length > 0 && currentlySelectedFile) {
       const fileToExpandIndex = data.findIndex(
         (file) => file && file.headName === currentlySelectedFile
       )

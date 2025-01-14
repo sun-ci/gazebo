@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+
+import { Plans } from 'shared/utils/billing'
 
 import { useUpdateBillingAddress } from './useUpdateBillingAddress'
 
@@ -36,7 +38,7 @@ const accountDetails = {
     baseUnitPrice: 12,
     benefits: ['Configurable # of users', 'Unlimited repos'],
     quantity: 5,
-    value: 'users-inappm',
+    value: Plans.USERS_PR_INAPPM,
   },
   subscription_detail: {
     latest_invoice: {

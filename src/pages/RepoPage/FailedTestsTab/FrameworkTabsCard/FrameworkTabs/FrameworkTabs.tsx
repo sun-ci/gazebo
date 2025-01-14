@@ -15,10 +15,23 @@ type FrameworkType = (typeof Frameworks)[keyof typeof Frameworks]
 const FrameworkCopy = {
   [Frameworks.PYTEST]:
     'pytest --cov --junitxml=junit.xml -o junit_family=legacy',
-  [Frameworks.VITEST]: 'vitest --reporter=junit',
-  [Frameworks.JEST]:
-    'npm i --save-dev jest-junit \njest --reporters=jest-junit',
+  [Frameworks.VITEST]:
+    'vitest --reporter=junit --outputFile=test-report.junit.xml',
+  [Frameworks.JEST]: (
+    <p data-testid="jest-framework-copy">
+      npm i --save-dev jest-junit <br />
+      JEST_JUNIT_CLASSNAME=
+      <span className="text-codecov-code">{'"{filepath}"'}</span> jest
+      --reporters=jest-junit
+    </p>
+  ),
   [Frameworks.PHP_UNIT]: './vendor/bin/phpunit --log-junit junit.xml',
+} as const
+
+const FrameworkClipboard = {
+  ...FrameworkCopy,
+  [Frameworks.JEST]:
+    'npm i --save-dev jest-junit \n JEST_JUNIT_CLASSNAME="{filepath}" jest --reporters=jest-junit',
 } as const
 
 export function FrameworkTabs() {
@@ -42,7 +55,7 @@ export function FrameworkTabs() {
           </button>
         ))}
       </div>
-      <CodeSnippet clipboard={FrameworkCopy[selectedFramework]}>
+      <CodeSnippet clipboard={FrameworkClipboard[selectedFramework]}>
         {FrameworkCopy[selectedFramework]}
       </CodeSnippet>
     </div>

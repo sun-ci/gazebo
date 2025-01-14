@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useCommitCoverageDropdownSummary } from './useCommitCoverageDropdownSummary'
@@ -97,7 +97,7 @@ describe('useCommitCoverageDropdownSummary', () => {
     isOwnerNotActivatedError = false,
   }: SetupArgs = {}) {
     server.use(
-      graphql.query('CommitDropdownSummary', (info) => {
+      graphql.query('CommitDropdownSummary', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -138,6 +138,7 @@ describe('useCommitCoverageDropdownSummary', () => {
             },
           },
         },
+        yamlErrors: [],
       }
 
       await waitFor(() =>
@@ -164,6 +165,7 @@ describe('useCommitCoverageDropdownSummary', () => {
         expect(result.current.data).toStrictEqual({
           uploadErrorCount: 0,
           commit: null,
+          yamlErrors: [],
         })
       )
     })

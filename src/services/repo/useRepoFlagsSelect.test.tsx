@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type MockInstance } from 'vitest'
 
@@ -15,7 +15,7 @@ const queryClient = new QueryClient({
   },
 })
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
   <MemoryRouter initialEntries={['/gh/codecov/gazebo/flags']}>
     <Route path="/:provider/:owner/:repo/flags">
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -125,13 +125,15 @@ describe('FlagsSelect', () => {
           owner: {
             repository: {
               __typename: 'Repository',
-              flags: {
-                edges: info.variables.after
-                  ? [...nextPageData]
-                  : [...initialData],
-                pageInfo: {
-                  hasNextPage: !info.variables.after,
-                  endCursor: info.variables.after ? 'aabb' : 'dW5pdA==',
+              coverageAnalytics: {
+                flags: {
+                  edges: info.variables.after
+                    ? [...nextPageData]
+                    : [...initialData],
+                  pageInfo: {
+                    hasNextPage: !info.variables.after,
+                    endCursor: info.variables.after ? 'aabb' : 'dW5pdA==',
+                  },
                 },
               },
             },
@@ -139,7 +141,7 @@ describe('FlagsSelect', () => {
         }
         return HttpResponse.json({ data: dataReturned })
       }),
-      graphql.query('PullFlagsSelect', (info) => {
+      graphql.query('PullFlagsSelect', () => {
         if (isUnsuccessfulParseError) {
           return HttpResponse.json({ data: invalidData })
         } else if (isOwnerNotActivatedError) {

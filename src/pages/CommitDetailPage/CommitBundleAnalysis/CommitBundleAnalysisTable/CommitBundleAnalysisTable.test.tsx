@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -15,34 +15,36 @@ const mockCommitBundleListData = {
     repository: {
       __typename: 'Repository',
       commit: {
-        bundleAnalysisCompareWithParent: {
-          __typename: 'BundleAnalysisComparison',
-          bundles: [
-            {
-              name: 'bundle.js',
-              changeType: 'added',
-              bundleChange: {
-                loadTime: { threeG: 3 },
-                size: { uncompress: 1 },
+        bundleAnalysis: {
+          bundleAnalysisCompareWithParent: {
+            __typename: 'BundleAnalysisComparison',
+            bundles: [
+              {
+                name: 'bundle.js',
+                changeType: 'added',
+                bundleChange: {
+                  loadTime: { threeG: 3 },
+                  size: { uncompress: 1 },
+                },
+                bundleData: {
+                  loadTime: { threeG: 4 },
+                  size: { uncompress: 3 },
+                },
               },
-              bundleData: {
-                loadTime: { threeG: 4 },
-                size: { uncompress: 3 },
+              {
+                name: 'bundle.css',
+                changeType: 'added',
+                bundleChange: {
+                  loadTime: { threeG: 33 },
+                  size: { uncompress: -1000 },
+                },
+                bundleData: {
+                  loadTime: { threeG: 45 },
+                  size: { uncompress: 3000 },
+                },
               },
-            },
-            {
-              name: 'bundle.css',
-              changeType: 'added',
-              bundleChange: {
-                loadTime: { threeG: 33 },
-                size: { uncompress: -1000 },
-              },
-              bundleData: {
-                loadTime: { threeG: 45 },
-                size: { uncompress: 3000 },
-              },
-            },
-          ],
+            ],
+          },
         },
       },
     },
@@ -54,9 +56,11 @@ const mockEmptyCommitBundleListData = {
     repository: {
       __typename: 'Repository',
       commit: {
-        bundleAnalysisCompareWithParent: {
-          __typename: 'BundleAnalysisComparison',
-          bundles: [],
+        bundleAnalysis: {
+          bundleAnalysisCompareWithParent: {
+            __typename: 'BundleAnalysisComparison',
+            bundles: [],
+          },
         },
       },
     },
@@ -68,9 +72,11 @@ const mockNonComparisonTypeData = {
     repository: {
       __typename: 'Repository',
       commit: {
-        bundleAnalysisCompareWithParent: {
-          __typename: 'FirstPullRequest',
-          message: 'First pull request',
+        bundleAnalysis: {
+          bundleAnalysisCompareWithParent: {
+            __typename: 'FirstPullRequest',
+            message: 'First pull request',
+          },
         },
       },
     },
@@ -127,7 +133,7 @@ describe('CommitBundleAnalysisTable', () => {
   ) {
     const user = userEvent.setup()
     server.use(
-      graphql.query('CommitBundleList', (info) => {
+      graphql.query('CommitBundleList', () => {
         if (isEmptyList) {
           return HttpResponse.json({ data: mockEmptyCommitBundleListData })
         } else if (nonComparisonType) {
@@ -236,13 +242,12 @@ describe('CommitBundleAnalysisTable', () => {
 
 describe('useTableData', () => {
   function setup(
-    { isEmptyList = false, nonComparisonType = false }: SetupArgs = {
-      isEmptyList: false,
+    { nonComparisonType = false }: SetupArgs = {
       nonComparisonType: false,
     }
   ) {
     server.use(
-      graphql.query('CommitBundleList', (info) => {
+      graphql.query('CommitBundleList', () => {
         if (nonComparisonType) {
           return HttpResponse.json({ data: mockNonComparisonTypeData })
         } else {

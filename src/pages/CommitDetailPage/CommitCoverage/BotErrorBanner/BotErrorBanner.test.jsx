@@ -1,8 +1,8 @@
 import { render, screen } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import BotErrorBanner from './BotErrorBanner.jsx'
@@ -44,7 +44,7 @@ afterAll(() => {
 describe('BotErrorBanner', () => {
   function setup({ integrationId } = { integrationId: null }) {
     server.use(
-      http.get('/internal/:provider/codecov/account-details/', (info) => {
+      http.get('/internal/:provider/codecov/account-details/', () => {
         return HttpResponse.json({ integrationId })
       })
     )
@@ -59,7 +59,7 @@ describe('BotErrorBanner', () => {
       })
 
       const title = await screen.findByText(
-        'There was an issue with the Github app'
+        'There was an issue with the GitHub app'
       )
       expect(title).toBeInTheDocument()
     })

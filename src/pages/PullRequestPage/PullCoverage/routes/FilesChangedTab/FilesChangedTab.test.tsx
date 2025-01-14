@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -109,17 +109,17 @@ interface SetupArgs {
 describe('FilesChangedTab', () => {
   function setup({ planValue, privateRepo }: SetupArgs) {
     server.use(
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (planValue === TierNames.TEAM) {
           return HttpResponse.json({ data: mockTeamTier })
         }
 
         return HttpResponse.json({ data: mockProTier })
       }),
-      graphql.query('GetPullTeam', (info) => {
+      graphql.query('GetPullTeam', () => {
         return HttpResponse.json({ data: mockCompareData })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -140,7 +140,7 @@ describe('FilesChangedTab', () => {
           },
         })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
       })
     )

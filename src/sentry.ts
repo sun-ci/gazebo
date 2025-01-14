@@ -4,6 +4,25 @@ import { Route } from 'react-router-dom'
 
 import config from './config'
 
+// Custom ignored errors
+const customIgnoredErrors = [
+  /*
+   * LD could fail for a multiple reasons, network issues, server issues, rate
+   * limiting, etc. We can't really help if if LD fails to fetch, so we ignore
+   * it. We also provide a fallback value to our feature flags so if this
+   * fails the app won't break.
+   */
+  'LaunchDarklyFlagFetchError',
+  /*
+   * App throwing an error if it can't find a module. We have resolved this
+   * with two different methods, we're storing assets from previous builds, as
+   * well when this error is triggered we automatically refresh the users
+   * window to load in the new data (which is triggered by this error).
+   */
+  // Removing this for the time being, to see if we can resolve it fully
+  // 'Failed to fetch dynamically imported module',
+]
+
 // common ignore errors / URLs to de-clutter Sentry
 // https://docs.sentry.io/platforms/javascript/guides/react/configuration/filtering/#decluttering-sentry
 const deClutterConfig = {
@@ -29,6 +48,7 @@ const deClutterConfig = {
     'EBCallBackMessageReceived',
     // See http://toolbar.conduit.com/Developer/HtmlAndGadget/Methods/JSInjection.aspx
     'conduitPage',
+    ...customIgnoredErrors,
   ],
   denyUrls: [
     // Facebook flakiness
@@ -107,7 +127,9 @@ export const setupSentry = ({
     if (!tracePropagationTargets.includes(hostname)) {
       tracePropagationTargets.push(hostname)
     }
-  } catch {}
+  } catch {
+    // do nothing
+  }
 
   Sentry.init({
     dsn: config.SENTRY_DSN,

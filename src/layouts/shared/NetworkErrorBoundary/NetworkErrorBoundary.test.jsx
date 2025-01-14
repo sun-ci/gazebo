@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -20,6 +19,7 @@ const queryClient = new QueryClient({
 
 afterEach(() => {
   queryClient.clear()
+  vi.clearAllMocks()
 })
 
 class TestErrorBoundary extends Component {
@@ -44,13 +44,15 @@ class TestErrorBoundary extends Component {
 }
 
 // eslint-disable-next-line react/prop-types
-function ErrorComponent({ status, detail, typename }) {
+function ErrorComponent({ status, detail, typename, dev, error }) {
   // eslint-disable-next-line no-throw-literal
   throw {
     status,
     data: {
       detail,
     },
+    dev,
+    error,
     __typename: typename,
   }
   // eslint-disable-next-line no-unreachable
@@ -58,7 +60,7 @@ function ErrorComponent({ status, detail, typename }) {
 }
 
 // eslint-disable-next-line react/prop-types
-function App({ status, detail, typename }) {
+function App({ status, detail, typename, dev, error }) {
   const [text, setText] = useState('')
   const history = useHistory()
 
@@ -88,6 +90,8 @@ function App({ status, detail, typename }) {
                 status={status}
                 detail={detail}
                 typename={typename}
+                dev={dev}
+                error={error}
               />
             ) : (
               'type "fail"'
@@ -178,24 +182,6 @@ describe('NetworkErrorBoundary', () => {
       const returnButton = await screen.findByText('Return to previous page')
       expect(returnButton).toBeInTheDocument()
     })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App status={401} detail="not authenticated" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.network_status.401',
-          1,
-          undefined
-        )
-      )
-    })
   })
 
   describe('when the children component has a 403 error', () => {
@@ -236,24 +222,6 @@ describe('NetworkErrorBoundary', () => {
 
       const button = await screen.findByText('Return to previous page')
       expect(button).toBeInTheDocument()
-    })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App status={403} detail="you not admin" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.network_status.403',
-          1,
-          undefined
-        )
-      )
     })
   })
 
@@ -313,24 +281,6 @@ describe('NetworkErrorBoundary', () => {
         expect(button).toBeInTheDocument()
       })
     })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App status={404} detail="not found" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.network_status.404',
-          1,
-          undefined
-        )
-      )
-    })
   })
 
   describe('when the children component has a 429 error', () => {
@@ -379,24 +329,6 @@ describe('NetworkErrorBoundary', () => {
 
       // Clean up the mock
       global.fetch.mockRestore()
-    })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App status={429} detail="rate throttled" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.network_status.429',
-          1,
-          undefined
-        )
-      )
     })
   })
 
@@ -456,24 +388,6 @@ describe('NetworkErrorBoundary', () => {
         expect(button).toBeInTheDocument()
       })
     })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App status={500} detail="internal server error" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.network_status.500',
-          1,
-          undefined
-        )
-      )
-    })
   })
 
   describe('when the children component has an UnauthenticatedError GraphQL error', () => {
@@ -501,24 +415,6 @@ describe('NetworkErrorBoundary', () => {
 
       const button = await screen.findByText('Return to previous page')
       expect(button).toBeInTheDocument()
-    })
-
-    it('sends metric to sentry', async () => {
-      const { user } = setup()
-      render(<App typename="UnauthenticatedError" />, {
-        wrapper: wrapper(),
-      })
-
-      const textBox = await screen.findByRole('textbox')
-      await user.type(textBox, 'fail')
-
-      await waitFor(() =>
-        expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-          'network_errors.graphql.unauthenticated_error',
-          1,
-          undefined
-        )
-      )
     })
   })
 

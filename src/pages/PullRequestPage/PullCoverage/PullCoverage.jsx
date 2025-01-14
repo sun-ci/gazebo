@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { useSuspenseQuery as useSuspenseQueryV5 } from '@tanstack/react-queryV5'
+import { lazy, Suspense } from 'react'
 import { Redirect, Switch, useParams } from 'react-router-dom'
 
 import { SentryRoute } from 'sentry'
@@ -9,13 +10,12 @@ import { TierNames, useTier } from 'services/tier'
 import ComparisonErrorBanner from 'shared/ComparisonErrorBanner'
 import GitHubRateLimitExceededBanner from 'shared/GlobalBanners/GitHubRateLimitExceeded/GitHubRateLimitExceededBanner'
 import { ComparisonReturnType, ReportUploadType } from 'shared/utils/comparison'
-import { metrics } from 'shared/utils/metrics'
 import Spinner from 'ui/Spinner'
 
 import PullCoverageTabs from './PullCoverageTabs'
 import CompareSummarySkeleton from './Summary/CompareSummary/CompareSummarySkeleton'
 
-import { usePullPageData } from '../hooks'
+import { PullPageDataQueryOpts } from '../queries/PullPageDataQueryOpts'
 
 const CompareSummary = lazy(() => import('./Summary'))
 const FirstPullBanner = lazy(() => import('./FirstPullBanner'))
@@ -39,23 +39,17 @@ function PullCoverageContent() {
   const { data: overview } = useRepoOverview({ provider, owner, repo })
   const { data: tierData } = useTier({ provider, owner })
 
-  useEffect(() => {
-    if (overview?.bundleAnalysisEnabled && overview?.coverageEnabled) {
-      metrics.increment('pull_request_page.coverage_dropdown.opened', 1)
-    } else if (overview?.coverageEnabled) {
-      metrics.increment('pull_request_page.coverage_page.visited_page', 1)
-    }
-  }, [overview?.bundleAnalysisEnabled, overview?.coverageEnabled])
-
   const isTeamPlan = tierData === TierNames.TEAM && overview?.private
 
-  const { data } = usePullPageData({
-    provider,
-    owner,
-    repo,
-    pullId,
-    isTeamPlan,
-  })
+  const { data } = useSuspenseQueryV5(
+    PullPageDataQueryOpts({
+      provider,
+      owner,
+      repo,
+      pullId,
+      isTeamPlan,
+    })
+  )
 
   const resultType = data?.pull?.compareWithBase?.__typename
 
@@ -135,23 +129,18 @@ function PullCoverage() {
   const { data: overview } = useRepoOverview({ provider, owner, repo })
   const { data: tierData } = useTier({ provider, owner })
   const { data: rateLimit } = useRepoRateLimitStatus({ provider, owner, repo })
-  useEffect(() => {
-    if (overview?.bundleAnalysisEnabled && overview?.coverageEnabled) {
-      metrics.increment('pull_request_page.coverage_dropdown.opened', 1)
-    } else if (overview?.coverageEnabled) {
-      metrics.increment('pull_request_page.coverage_page.visited_page', 1)
-    }
-  }, [overview?.bundleAnalysisEnabled, overview?.coverageEnabled])
 
   const isTeamPlan = tierData === TierNames.TEAM && overview?.private
 
-  const { data } = usePullPageData({
-    provider,
-    owner,
-    repo,
-    pullId,
-    isTeamPlan,
-  })
+  const { data } = useSuspenseQueryV5(
+    PullPageDataQueryOpts({
+      provider,
+      owner,
+      repo,
+      pullId,
+      isTeamPlan,
+    })
+  )
 
   return (
     <div className="mx-4 flex flex-col gap-4 md:mx-0">

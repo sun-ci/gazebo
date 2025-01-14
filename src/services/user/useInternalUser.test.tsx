@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useInternalUser } from './useInternalUser'
 
@@ -28,7 +28,7 @@ afterAll(() => {
 describe('useInternalUser', () => {
   function setup(hasError = false) {
     server.use(
-      http.get('/internal/user', (info) => {
+      http.get('/internal/user', () => {
         if (hasError) {
           return HttpResponse.json({}, { status: 400 })
         }

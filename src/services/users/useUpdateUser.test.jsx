@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useUpdateUser } from './useUpdateUser'
@@ -43,9 +43,9 @@ afterEach(() => {
 afterAll(() => server.close())
 
 describe('useUpdateUser', () => {
-  function setup({ ownerid, body, opts = {} }) {
+  function setup({ body }) {
     server.use(
-      http.patch(`/internal/:provider/:owner/users/:ownerid`, (info) => {
+      http.patch(`/internal/:provider/:owner/users/:ownerid`, () => {
         return HttpResponse.json(body)
       })
     )

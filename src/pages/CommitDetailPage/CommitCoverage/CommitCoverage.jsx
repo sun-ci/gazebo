@@ -1,5 +1,6 @@
+import { useSuspenseQuery as useSuspenseQueryV5 } from '@tanstack/react-queryV5'
 import isEmpty from 'lodash/isEmpty'
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense } from 'react'
 import { Redirect, Switch, useParams } from 'react-router-dom'
 
 import { SentryRoute } from 'sentry'
@@ -13,7 +14,6 @@ import ComparisonErrorBanner from 'shared/ComparisonErrorBanner'
 import GitHubRateLimitExceededBanner from 'shared/GlobalBanners/GitHubRateLimitExceeded/GitHubRateLimitExceededBanner'
 import { ReportUploadType } from 'shared/utils/comparison'
 import { extractUploads } from 'shared/utils/extractUploads'
-import { metrics } from 'shared/utils/metrics'
 import Spinner from 'ui/Spinner'
 
 import BotErrorBanner from './BotErrorBanner'
@@ -23,7 +23,7 @@ import ErroredUploads from './ErroredUploads'
 import FirstPullBanner from './FirstPullBanner'
 import YamlErrorBanner from './YamlErrorBanner'
 
-import { useCommitPageData } from '../hooks'
+import { CommitPageDataQueryOpts } from '../queries/CommitPageDataQueryOpts'
 
 const CommitDetailFileExplorer = lazy(
   () => import('./routes/CommitDetailFileExplorer')
@@ -46,12 +46,14 @@ function CommitRoutes() {
   const { provider, owner, repo, commit: commitSha } = useParams()
   const { data: tierName } = useTier({ owner, provider })
   const { data: overview } = useRepoOverview({ provider, owner, repo })
-  const { data: commitPageData } = useCommitPageData({
-    provider,
-    owner,
-    repo,
-    commitId: commitSha,
-  })
+  const { data: commitPageData } = useSuspenseQueryV5(
+    CommitPageDataQueryOpts({
+      provider,
+      owner,
+      repo,
+      commitId: commitSha,
+    })
+  )
 
   const compareTypeName = commitPageData?.commit?.compareWithParent?.__typename
   const ErrorBannerComponent = (
@@ -130,7 +132,7 @@ function CommitErrorBanners() {
       {ownerData?.isCurrentUserPartOfOrg && (
         <BotErrorBanner botErrorsCount={data?.botErrors?.length} />
       )}
-      {invalidYaml && <YamlErrorBanner />}
+      {invalidYaml && <YamlErrorBanner shouldLinkToModal={true} />}
     </>
   )
 }
@@ -175,20 +177,14 @@ function CommitCoverage() {
   const { data: tierName } = useTier({ owner, provider })
   const { data: overview } = useRepoOverview({ provider, owner, repo })
   const { data: rateLimit } = useRepoRateLimitStatus({ provider, owner, repo })
-  const { data: commitPageData } = useCommitPageData({
-    provider,
-    owner,
-    repo,
-    commitId: commitSha,
-  })
-
-  useEffect(() => {
-    if (overview.bundleAnalysisEnabled && overview.coverageEnabled) {
-      metrics.increment('commit_detail_page.coverage_dropdown.opened', 1)
-    } else if (overview.coverageEnabled) {
-      metrics.increment('commit_detail_page.coverage_page.visited_page', 1)
-    }
-  }, [overview.bundleAnalysisEnabled, overview.coverageEnabled])
+  const { data: commitPageData } = useSuspenseQueryV5(
+    CommitPageDataQueryOpts({
+      provider,
+      owner,
+      repo,
+      commitId: commitSha,
+    })
+  )
 
   const showCommitSummary = !(overview.private && tierName === TierNames.TEAM)
   const showFirstPullBanner =
@@ -204,15 +200,15 @@ function CommitCoverage() {
       {/**we are currently capturing a single error*/}
       <CommitErrorBanners />
       {rateLimit?.isGithubRateLimited && <GitHubRateLimitExceededBanner />}
-      <div className="flex flex-col gap-4 lg:flex-row-reverse lg:gap-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-8">
+        <article className="flex flex-1 flex-col">
+          <CommitCoverageRoutes />
+        </article>
         <aside className="flex w-full flex-1 flex-col gap-6 self-start py-3 lg:sticky lg:top-16 lg:max-w-sm">
           <Suspense fallback={<Loader />}>
             <UploadsCard />
           </Suspense>
         </aside>
-        <article className="flex flex-1 flex-col">
-          <CommitCoverageRoutes />
-        </article>
       </div>
     </div>
   )

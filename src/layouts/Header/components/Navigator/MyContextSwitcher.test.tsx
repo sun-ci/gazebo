@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type Mock } from 'vitest'
 
@@ -82,7 +82,7 @@ describe('MyContextSwitcher', () => {
           return HttpResponse.json({ data: { me: null } })
         }
 
-        const orgList = !!info.variables?.after ? org2 : org1
+        const orgList = info.variables?.after ? org2 : org1
         const hasNextPage = info.variables?.after ? false : true
         const endCursor = info.variables?.after ? 'second' : 'first'
 
@@ -105,7 +105,7 @@ describe('MyContextSwitcher', () => {
 
         return HttpResponse.json({ data: queryData })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         if (noData) {
           return HttpResponse.json({ data: { me: null } })
         }
@@ -126,12 +126,9 @@ describe('MyContextSwitcher', () => {
   describe('when there are no contexts (user not logged in)', () => {
     it('renders nothing', async () => {
       setup(true)
-      const { container } = render(
-        <MyContextSwitcher pageName="accountPage" />,
-        {
-          wrapper: wrapper(),
-        }
-      )
+      const { container } = render(<MyContextSwitcher pageName="account" />, {
+        wrapper: wrapper(),
+      })
 
       await waitFor(() => expect(container).toBeEmptyDOMElement())
     })

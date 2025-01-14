@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import React, { Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 import { type Mock, vi } from 'vitest'
@@ -9,6 +13,7 @@ import { type Mock, vi } from 'vitest'
 import config from 'config'
 
 import { useLocationParams } from 'services/navigation'
+import { Plans } from 'shared/utils/billing'
 
 import App from './App'
 
@@ -85,7 +90,7 @@ const user = {
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -120,32 +125,43 @@ const mockRepoOverview = {
   },
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
+const mockNavigatorData = {
+  owner: {
+    isCurrentUserPartOfOrg: true,
+    repository: {
+      __typename: 'Repository',
+      name: 'test-repo',
     },
   },
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
 })
 
 let testLocation: ReturnType<typeof useLocation>
 const wrapper =
   (initialEntries = ['']): React.FC<React.PropsWithChildren> =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>
-        <Suspense fallback={<p>Loading</p>}>
-          {children}
-          <Route
-            path="*"
-            render={({ location }) => {
-              testLocation = location
-              return null
-            }}
-          />
-        </Suspense>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={initialEntries}>
+          <Suspense fallback={<p>Loading</p>}>
+            {children}
+            <Route
+              path="*"
+              render={({ location }) => {
+                testLocation = location
+                return null
+              }}
+            />
+          </Suspense>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 const server = setupServer()
@@ -157,9 +173,13 @@ beforeAll(() => {
 
 beforeEach(() => {
   config.IS_SELF_HOSTED = false
+  mockedUseLocationParams.mockReturnValue({ params: {} })
+})
+
+afterEach(() => {
   queryClient.clear()
   server.resetHandlers()
-  mockedUseLocationParams.mockReturnValue({ params: {} })
+  vi.clearAllMocks()
 })
 
 afterAll(() => {
@@ -175,54 +195,60 @@ describe('App', () => {
     hasSession?: boolean
   }) {
     server.use(
-      http.get('/internal/user', (info) => {
+      http.get('/internal/user', () => {
         if (hasSession) {
           return HttpResponse.json(internalUser)
         } else {
           return HttpResponse.json({})
         }
       }),
-      http.get('/internal/users/current', (info) => {
+      http.get('/internal/users/current', () => {
         return HttpResponse.json({})
       }),
-      graphql.query('DetailOwner', (info) =>
+      graphql.query('DetailOwner', () =>
         HttpResponse.json({ data: { owner: 'codecov' } })
       ),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         if (hasLoggedInUser) {
           return HttpResponse.json({ data: user })
         }
         HttpResponse.json({ data: {} })
       }),
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('Seats', (info) => {
+      graphql.query('Seats', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('HasAdmins', (info) => {
-        return HttpResponse.json({ data: {} })
+      graphql.query('HasAdmins', () => {
+        return HttpResponse.json({ data: { config: null } })
       }),
-      graphql.query('owner', (info) => {
+      graphql.query('owner', () => {
         return HttpResponse.json({ data: { owner: { isAdmin: true } } })
       }),
-      graphql.query('MyContexts', (info) => {
+      graphql.query('MyContexts', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('GetOktaConfig', (info) => {
+      graphql.query('GetOktaConfig', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('OwnerPageData', (info) => {
+      graphql.query('OwnerPageData', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.mutation('updateDefaultOrganization', (info) => {
+      graphql.mutation('updateDefaultOrganization', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
+      }),
+      graphql.query('GetUploadTokenRequired', () => {
+        return HttpResponse.json({ data: { owner: null } })
+      }),
+      graphql.query('NavigatorData', () => {
+        return HttpResponse.json({ data: mockNavigatorData })
       })
     )
   }

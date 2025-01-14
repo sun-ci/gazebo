@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type MockInstance } from 'vitest'
 
@@ -13,10 +13,12 @@ const compareDoneData = {
       __typename: 'Repository',
       commit: {
         branchName: null,
-        totals: {
-          coverage: 38.30846,
-          diff: {
-            coverage: null,
+        coverageAnalytics: {
+          totals: {
+            coverage: 38.30846,
+            diff: {
+              coverage: null,
+            },
           },
         },
         commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -44,8 +46,10 @@ const compareDoneData = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -59,10 +63,12 @@ const dataReturned = {
       __typename: 'Repository',
       commit: {
         branchName: null,
-        totals: {
-          coverage: 38.30846,
-          diff: {
-            coverage: null,
+        coverageAnalytics: {
+          totals: {
+            coverage: 38.30846,
+            diff: {
+              coverage: null,
+            },
           },
         },
         commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -110,6 +116,7 @@ const dataReturned = {
                 buildCode: null,
               },
             },
+            null,
           ],
         },
         message: 'paths test',
@@ -127,8 +134,10 @@ const dataReturned = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -142,10 +151,12 @@ const dataReturnedTeam = {
       __typename: 'Repository',
       commit: {
         branchName: null,
-        totals: {
-          coverage: 38.30846,
-          diff: {
-            coverage: null,
+        coverageAnalytics: {
+          totals: {
+            coverage: 38.30846,
+            diff: {
+              coverage: null,
+            },
           },
         },
         commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -172,6 +183,7 @@ const dataReturnedTeam = {
                 name: 'upload name',
                 jobCode: null,
                 buildCode: null,
+                flags: null,
               },
             },
           ],
@@ -191,8 +203,10 @@ const dataReturnedTeam = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -290,9 +304,9 @@ describe('useCommit', () => {
           return HttpResponse.json({ data: dataToReturn })
         }
       }),
-      graphql.query(`CompareTotals`, (info) => {
+      graphql.query(`CompareTotals`, () => {
         if (skipPolling) {
-          return HttpResponse.json({ data: {} })
+          return HttpResponse.json({ data: { owner: null } })
         }
         return HttpResponse.json({ data: compareDoneData })
       })
@@ -345,14 +359,18 @@ describe('useCommit', () => {
             message: 'paths test',
             parent: {
               commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-              totals: {
-                coverage: 38.30846,
+              coverageAnalytics: {
+                totals: {
+                  coverage: 38.30846,
+                },
               },
             },
             pullId: 10,
             state: 'complete',
-            totals: {
-              coverage: 38.30846,
+            coverageAnalytics: {
+              totals: {
+                coverage: 38.30846,
+              },
             },
             uploads: [
               {
@@ -438,14 +456,18 @@ describe('useCommit', () => {
             message: 'paths test',
             parent: {
               commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-              totals: {
-                coverage: 38.30846,
+              coverageAnalytics: {
+                totals: {
+                  coverage: 38.30846,
+                },
               },
             },
             pullId: 10,
             state: 'complete',
-            totals: {
-              coverage: 38.30846,
+            coverageAnalytics: {
+              totals: {
+                coverage: 38.30846,
+              },
             },
             uploads: [
               {
@@ -462,6 +484,7 @@ describe('useCommit', () => {
                 state: 'PROCESSED',
                 updatedAt: '2020-08-25T16:36:19.67986800:00',
                 uploadType: 'UPLOADED',
+                flags: null,
               },
             ],
           },
@@ -527,6 +550,7 @@ describe('useCommit', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'useCommit - 404 not found',
           })
         )
       )
@@ -564,6 +588,7 @@ describe('useCommit', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 403,
+            dev: 'useCommit - 403 owner not activated',
           })
         )
       )
@@ -601,6 +626,7 @@ describe('useCommit', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'useCommit - 404 failed to parse',
           })
         )
       )
@@ -614,10 +640,10 @@ describe('useCommit polling', () => {
   function setup() {
     nbCallCompare = 0
     server.use(
-      graphql.query(`Commit`, (info) => {
+      graphql.query(`Commit`, () => {
         return HttpResponse.json({ data: dataReturned })
       }),
-      graphql.query(`CompareTotals`, (info) => {
+      graphql.query(`CompareTotals`, () => {
         nbCallCompare++
         // after 10 calls, the server returns that the commit is processed
         if (nbCallCompare < 1) {
@@ -662,8 +688,10 @@ describe('useCommit polling', () => {
         expect(result.current.data).toStrictEqual({
           commit: {
             branchName: null,
-            totals: {
-              coverage: 38.30846,
+            coverageAnalytics: {
+              totals: {
+                coverage: 38.30846,
+              },
             },
             commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
             pullId: 10,
@@ -687,8 +715,10 @@ describe('useCommit polling', () => {
             },
             parent: {
               commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-              totals: {
-                coverage: 38.30846,
+              coverageAnalytics: {
+                totals: {
+                  coverage: 38.30846,
+                },
               },
             },
             uploads: [

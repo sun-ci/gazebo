@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { usePullTeam } from './usePullTeam'
@@ -132,7 +132,7 @@ describe('usePullTeam', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetPullTeam', (info) => {
+      graphql.query('GetPullTeam', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -145,7 +145,7 @@ describe('usePullTeam', () => {
           return HttpResponse.json({ data: mockPullData })
         }
       }),
-      graphql.query('GetPullCompareTotalsTeam', (info) => {
+      graphql.query('GetPullCompareTotalsTeam', () => {
         return HttpResponse.json({ data: mockCompareData })
       })
     )
@@ -257,6 +257,7 @@ describe('usePullTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'usePullTeam - 404 not found',
           })
         )
       )
@@ -293,6 +294,7 @@ describe('usePullTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 403,
+            dev: 'usePullTeam - 403 owner not activated',
           })
         )
       )
@@ -329,6 +331,7 @@ describe('usePullTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'usePullTeam - 404 failed to parse',
           })
         )
       )
@@ -340,10 +343,10 @@ describe('usePullTeam polling', () => {
   function setup() {
     let nbCallCompare = 0
     server.use(
-      graphql.query(`GetPullTeam`, (info) => {
+      graphql.query(`GetPullTeam`, () => {
         return HttpResponse.json({ data: mockPullData })
       }),
-      graphql.query(`GetPullCompareTotalsTeam`, (info) => {
+      graphql.query(`GetPullCompareTotalsTeam`, () => {
         nbCallCompare++
 
         if (nbCallCompare < 9) {

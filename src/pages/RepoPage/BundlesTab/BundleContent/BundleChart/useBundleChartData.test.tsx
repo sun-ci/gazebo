@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import qs from 'qs'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -29,69 +33,71 @@ const mockBundleTrendData = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              measurements: [
-                {
-                  assetType: 'JAVASCRIPT_SIZE',
-                  measurements: [
-                    {
-                      timestamp: '2024-06-15T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-16T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-17T00:00:00+00:00',
-                      avg: 10000.8,
-                    },
-                    {
-                      timestamp: '2024-06-18T00:00:00+00:00',
-                      avg: 10500,
-                    },
-                    {
-                      timestamp: '2024-06-19T00:00:00+00:00',
-                      avg: 20000,
-                    },
-                    {
-                      timestamp: '2024-06-20T00:00:00+00:00',
-                      avg: 15000,
-                    },
-                  ],
-                },
-                {
-                  assetType: 'STYLESHEET_SIZE',
-                  measurements: [
-                    {
-                      timestamp: '2024-06-15T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-16T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-17T00:00:00+00:00',
-                      avg: 1000,
-                    },
-                    {
-                      timestamp: '2024-06-18T00:00:00+00:00',
-                      avg: 800,
-                    },
-                    {
-                      timestamp: '2024-06-19T00:00:00+00:00',
-                      avg: 900,
-                    },
-                    {
-                      timestamp: '2024-06-20T00:00:00+00:00',
-                      avg: 950,
-                    },
-                  ],
-                },
-              ],
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                measurements: [
+                  {
+                    assetType: 'JAVASCRIPT_SIZE',
+                    measurements: [
+                      {
+                        timestamp: '2024-06-15T00:00:00+00:00',
+                        avg: null,
+                      },
+                      {
+                        timestamp: '2024-06-16T00:00:00+00:00',
+                        avg: null,
+                      },
+                      {
+                        timestamp: '2024-06-17T00:00:00+00:00',
+                        avg: 10000.8,
+                      },
+                      {
+                        timestamp: '2024-06-18T00:00:00+00:00',
+                        avg: 10500,
+                      },
+                      {
+                        timestamp: '2024-06-19T00:00:00+00:00',
+                        avg: 20000,
+                      },
+                      {
+                        timestamp: '2024-06-20T00:00:00+00:00',
+                        avg: 15000,
+                      },
+                    ],
+                  },
+                  {
+                    assetType: 'STYLESHEET_SIZE',
+                    measurements: [
+                      {
+                        timestamp: '2024-06-15T00:00:00+00:00',
+                        avg: null,
+                      },
+                      {
+                        timestamp: '2024-06-16T00:00:00+00:00',
+                        avg: null,
+                      },
+                      {
+                        timestamp: '2024-06-17T00:00:00+00:00',
+                        avg: 1000,
+                      },
+                      {
+                        timestamp: '2024-06-18T00:00:00+00:00',
+                        avg: 800,
+                      },
+                      {
+                        timestamp: '2024-06-19T00:00:00+00:00',
+                        avg: 900,
+                      },
+                      {
+                        timestamp: '2024-06-20T00:00:00+00:00',
+                        avg: 950,
+                      },
+                    ],
+                  },
+                ],
+              },
             },
           },
         },
@@ -101,17 +107,25 @@ const mockBundleTrendData = {
 }
 
 const initialEntries = '/gh/codecov/test-repo/bundles/main/test-bundle'
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
+})
+
 const wrapper =
   (entries = initialEntries): React.FC<React.PropsWithChildren> =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[entries]}>
-        <Route path="/:provider/:owner/:repo/bundles/:branch/:bundle">
-          {children}
-        </Route>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[entries]}>
+          <Route path="/:provider/:owner/:repo/bundles/:branch/:bundle">
+            {children}
+          </Route>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 const server = setupServer()
@@ -122,6 +136,7 @@ beforeAll(() => {
 
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 
@@ -138,7 +153,7 @@ describe('useBundleChartData', () => {
         queryVarMock(info.variables)
         return HttpResponse.json({ data: mockBundleTrendData })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
       })
     )
@@ -162,32 +177,63 @@ describe('useBundleChartData', () => {
 
     const expectedResult = {
       isLoading: false,
-      maxY: 32,
+      maxY: 30,
       multiplier: 1_000,
+      assetTypes: [
+        'JAVASCRIPT_SIZE',
+        'STYLESHEET_SIZE',
+        'FONT_SIZE',
+        'IMAGE_SIZE',
+        'UNKNOWN_SIZE',
+      ],
       data: [
         {
           date: new Date('2024-06-15T00:00:00+00:00'),
-          size: 0,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 0,
+          STYLESHEET_SIZE: 0,
+          UNKNOWN_SIZE: 0,
         },
         {
           date: new Date('2024-06-16T00:00:00+00:00'),
-          size: 0,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 0,
+          STYLESHEET_SIZE: 0,
+          UNKNOWN_SIZE: 0,
         },
         {
           date: new Date('2024-06-17T00:00:00+00:00'),
-          size: 11000.8,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 10000.8,
+          STYLESHEET_SIZE: 1000,
+          UNKNOWN_SIZE: 0,
         },
         {
           date: new Date('2024-06-18T00:00:00+00:00'),
-          size: 11300,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 10500,
+          STYLESHEET_SIZE: 800,
+          UNKNOWN_SIZE: 0,
         },
         {
           date: new Date('2024-06-19T00:00:00+00:00'),
-          size: 20900,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 20000,
+          STYLESHEET_SIZE: 900,
+          UNKNOWN_SIZE: 0,
         },
         {
           date: new Date('2024-06-20T00:00:00+00:00'),
-          size: 15950,
+          FONT_SIZE: 0,
+          IMAGE_SIZE: 0,
+          JAVASCRIPT_SIZE: 15000,
+          STYLESHEET_SIZE: 950,
+          UNKNOWN_SIZE: 0,
         },
       ],
     }
@@ -229,7 +275,13 @@ describe('useBundleChartData', () => {
         branch: 'main',
         bundle: 'test-bundle',
         filters: {
-          assetTypes: ['REPORT_SIZE'],
+          assetTypes: [
+            'JAVASCRIPT_SIZE',
+            'STYLESHEET_SIZE',
+            'FONT_SIZE',
+            'IMAGE_SIZE',
+            'UNKNOWN_SIZE',
+          ],
           // temp removing while we don't have filtering by types implemented
           // loadTypes: [],
         },
@@ -269,12 +321,19 @@ describe('useBundleChartData', () => {
         expect(queryVarMock).toHaveBeenCalledWith(
           expect.objectContaining({
             filters: expect.objectContaining({
-              assetTypes: ['REPORT_SIZE'],
+              assetTypes: [
+                'JAVASCRIPT_SIZE',
+                'STYLESHEET_SIZE',
+                'FONT_SIZE',
+                'IMAGE_SIZE',
+                'UNKNOWN_SIZE',
+              ],
             }),
           })
         )
       })
 
+      // this functionality is not implement yet - need to see if we are planning on implementing it*
       it.skip('defaults to empty load types array', async () => {
         const { queryVarMock } = setup()
 

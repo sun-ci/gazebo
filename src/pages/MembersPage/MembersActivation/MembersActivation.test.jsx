@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TrialStatuses } from 'services/account'
-import { Plans } from 'shared/utils/billing'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import MembersActivation from './MembersActivation'
 
@@ -20,7 +20,7 @@ const mockedAccountDetails = {
     baseUnitPrice: 12,
     benefits: ['Configurable # of users', 'Unlimited repos'],
     quantity: 9,
-    value: 'users-basic',
+    value: Plans.USERS_BASIC,
   },
   activatedUserCount: 5,
   inactiveUserCount: 1,
@@ -29,10 +29,10 @@ const mockedAccountDetails = {
 const mockPlanData = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: TrialStatuses.NOT_STARTED,
   trialStartDate: '',
   trialEndDate: '',
@@ -40,6 +40,12 @@ const mockPlanData = {
   pretrialUsersCount: 0,
   planUserCount: 1,
   hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isFreePlan: false,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTeamPlan: false,
+  isTrialPlan: false,
 }
 
 const server = setupServer()
@@ -75,10 +81,10 @@ describe('Members Activation', () => {
     planValue = mockedAccountDetails.plan.value
   ) {
     server.use(
-      http.get('/internal/:provider/:owner/account-details/', (info) => {
+      http.get('/internal/:provider/:owner/account-details/', () => {
         return HttpResponse.json(accountDetails)
       }),
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {

@@ -1,82 +1,186 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen } from '@testing-library/react'
 import noop from 'lodash/noop'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { z } from 'zod'
 
 import { PlanUpdatedPlanNotificationContext } from 'pages/PlanPage/context'
-import { AccountDetailsSchema } from 'services/account'
+import { AccountDetailsSchema, TrialStatuses } from 'services/account'
+import { BillingRate, Plans } from 'shared/utils/billing'
 import { AlertOptions, type AlertOptionsType } from 'ui/Alert'
 
 import CurrentOrgPlan from './CurrentOrgPlan'
-
-const mocks = vi.hoisted(() => ({
-  useAccountDetails: vi.fn(),
-}))
-
-vi.mock('services/account', async () => {
-  const actual = await vi.importActual('services/account')
-  return {
-    ...actual,
-    useAccountDetails: mocks.useAccountDetails,
-  }
-})
+import { EnterpriseAccountDetailsRequestSchema } from './queries/EnterpriseAccountDetailsQueryOpts'
 
 vi.mock('./BillingDetails', () => ({ default: () => 'BillingDetails' }))
 vi.mock('./CurrentPlanCard', () => ({ default: () => 'CurrentPlanCard' }))
 vi.mock('./LatestInvoiceCard', () => ({ default: () => 'LatestInvoiceCard' }))
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
-})
+vi.mock('./AccountOrgs', () => ({ default: () => 'AccountOrgs' }))
 
 const mockedAccountDetails = {
   planProvider: 'github',
   rootOrganization: {},
-  plan: {
-    value: 'users-free',
-  },
   usesInvoice: false,
 } as z.infer<typeof AccountDetailsSchema>
 
+const mockNoEnterpriseAccount = {
+  owner: {
+    account: null,
+  },
+}
+
+const mockPlanDataResponse = {
+  baseUnitPrice: 10,
+  benefits: [],
+  billingRate: BillingRate.MONTHLY,
+  marketingName: 'some-name',
+  monthlyUploadLimit: 123,
+  value: Plans.USERS_PR_INAPPM,
+  trialStatus: TrialStatuses.NOT_STARTED,
+  trialStartDate: '',
+  trialEndDate: '',
+  trialTotalDays: 0,
+  pretrialUsersCount: 0,
+  planUserCount: 1,
+  hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isFreePlan: false,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTeamPlan: false,
+  isTrialPlan: false,
+}
+
+const mockEnterpriseAccountDetailsNinetyPercent = {
+  owner: {
+    account: {
+      name: 'account-name',
+      totalSeatCount: 10,
+      activatedUserCount: 9,
+      organizations: {
+        totalCount: 3,
+      },
+    },
+  },
+}
+
+const mockEnterpriseAccountDetails = {
+  owner: {
+    account: {
+      name: 'account-name',
+      totalSeatCount: 10,
+      activatedUserCount: 5,
+      organizations: {
+        totalCount: 3,
+      },
+    },
+  },
+}
+
+const mockEnterpriseAccountDetailsHundredPercent = {
+  owner: {
+    account: {
+      name: 'account-name',
+      totalSeatCount: 10,
+      activatedUserCount: 10,
+      organizations: {
+        totalCount: 3,
+      },
+    },
+  },
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
+})
+
 const alertOptionWrapperCreator = (
-  alertOptionString: AlertOptionsType | ''
+  alertOptionString: AlertOptionsType | '',
+  isCancellation?: boolean
 ) => {
   const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
     <MemoryRouter initialEntries={['/billing/gh/codecov']}>
       <Route path="/billing/:provider/:owner">
-        <QueryClientProvider client={queryClient}>
-          <PlanUpdatedPlanNotificationContext.Provider
-            value={{
-              updatedNotification: { alertOption: alertOptionString },
-              setUpdatedNotification: noop,
-            }}
-          >
-            {children}
-          </PlanUpdatedPlanNotificationContext.Provider>
-        </QueryClientProvider>
+        <QueryClientProviderV5 client={queryClientV5}>
+          <QueryClientProvider client={queryClient}>
+            <Suspense fallback={<div>Loading</div>}>
+              <PlanUpdatedPlanNotificationContext.Provider
+                value={{
+                  updatedNotification: {
+                    alertOption: alertOptionString,
+                    isCancellation,
+                  },
+                  setUpdatedNotification: noop,
+                }}
+              >
+                {children}
+              </PlanUpdatedPlanNotificationContext.Provider>
+            </Suspense>
+          </QueryClientProvider>
+        </QueryClientProviderV5>
       </Route>
     </MemoryRouter>
   )
   return wrapper
 }
 
+const server = setupServer()
 const wrapper = alertOptionWrapperCreator(AlertOptions.SUCCESS)
 const noUpdatedPlanWrapper = alertOptionWrapperCreator('')
+const cancellationPlanWrapper = alertOptionWrapperCreator('', true)
+
+beforeAll(() => {
+  server.listen()
+})
+
+afterEach(() => {
+  queryClient.clear()
+  queryClientV5.clear()
+  server.resetHandlers()
+})
+
+afterAll(() => {
+  server.close()
+})
+
+interface SetupArgs {
+  accountDetails?: z.infer<typeof AccountDetailsSchema>
+  enterpriseAccountDetails?: z.infer<
+    typeof EnterpriseAccountDetailsRequestSchema
+  >
+}
 
 describe('CurrentOrgPlan', () => {
   function setup({
     accountDetails = mockedAccountDetails,
-  }: {
-    accountDetails?: z.infer<typeof AccountDetailsSchema>
-  }) {
-    mocks.useAccountDetails.mockReturnValue({
-      data: accountDetails,
-    })
+    enterpriseAccountDetails = mockNoEnterpriseAccount,
+  }: SetupArgs) {
+    server.use(
+      graphql.query('EnterpriseAccountDetails', () => {
+        return HttpResponse.json({ data: enterpriseAccountDetails })
+      }),
+      graphql.query('GetPlanData', () => {
+        return HttpResponse.json({
+          data: {
+            owner: { hasPrivateRepos: true, plan: { ...mockPlanDataResponse } },
+          },
+        })
+      }),
+      http.get('/internal/:provider/:owner/account-details', () => {
+        return HttpResponse.json(accountDetails)
+      })
+    )
   }
 
   describe('when plan value and org root are provided', () => {
@@ -84,50 +188,39 @@ describe('CurrentOrgPlan', () => {
       setup({})
     })
 
-    it('renders CurrentPlanCard', () => {
+    it('renders CurrentPlanCard', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.getByText(/CurrentPlanCard/i)).toBeInTheDocument()
+      const currentPlanCard = await screen.findByText(/CurrentPlanCard/i)
+      expect(currentPlanCard).toBeInTheDocument()
     })
 
-    it('does not render LatestInvoiceCard', () => {
+    it('does not render LatestInvoiceCard', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.queryByText(/LatestInvoiceCard/i)).not.toBeInTheDocument()
+      const latestInvoiceCard = screen.queryByText(/LatestInvoiceCard/i)
+      expect(latestInvoiceCard).not.toBeInTheDocument()
     })
 
-    it('does not render BillingDetails', () => {
+    it('does not render BillingDetails', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.queryByText(/BillingDetails/i)).not.toBeInTheDocument()
+      const billingDetails = screen.queryByText(/BillingDetails/i)
+      expect(billingDetails).not.toBeInTheDocument()
     })
   })
 
   describe('when plan update success banner should be shown', () => {
-    it('renders banner for plan successfully updated', () => {
+    it('renders banner for plan successfully updated', async () => {
       setup({
-        accountDetails: {
-          plan: {
-            baseUnitPrice: 12,
-            billingRate: 'monthly',
-            marketingName: 'Pro',
-            quantity: 39,
-            value: 'users-pr-inappm',
-          },
-        } as z.infer<typeof AccountDetailsSchema>,
+        accountDetails: {} as z.infer<typeof AccountDetailsSchema>,
       })
 
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.getByText('Plan successfully updated.')).toBeInTheDocument()
+      const updatedAlert = await screen.findByText('Plan successfully updated.')
+      expect(updatedAlert).toBeInTheDocument()
     })
 
-    it('renders banner for plan successfully updated with scheduled details', () => {
+    it('renders banner for plan successfully updated with scheduled details', async () => {
       setup({
         accountDetails: {
-          plan: {
-            baseUnitPrice: 12,
-            billingRate: 'monthly',
-            marketingName: 'Pro',
-            quantity: 39,
-            value: 'users-pr-inappm',
-          },
           scheduleDetail: {
             scheduledPhase: {
               quantity: 34,
@@ -138,25 +231,21 @@ describe('CurrentOrgPlan', () => {
         } as z.infer<typeof AccountDetailsSchema>,
       })
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.getByText('Plan successfully updated.')).toBeInTheDocument()
+      const updatedAlert = await screen.findByText('Plan successfully updated.')
+      expect(updatedAlert).toBeInTheDocument()
       expect(
         screen.getByText(/with a monthly subscription for 34 seats/)
       ).toBeInTheDocument()
     })
 
-    it('does not render banner when no recent update made', () => {
+    it('does not render banner when no recent update made', async () => {
       setup({
-        accountDetails: {
-          plan: {
-            baseUnitPrice: 12,
-            billingRate: 'monthly',
-            marketingName: 'Pro',
-            quantity: 39,
-            value: 'users-pr-inappm',
-          },
-        } as z.infer<typeof AccountDetailsSchema>,
+        accountDetails: {} as z.infer<typeof AccountDetailsSchema>,
       })
       render(<CurrentOrgPlan />, { wrapper: noUpdatedPlanWrapper })
+      const currentPlanCard = await screen.findByText(/CurrentPlanCard/i)
+      expect(currentPlanCard).toBeInTheDocument()
+
       expect(
         screen.queryByText('Plan successfully updated.')
       ).not.toBeInTheDocument()
@@ -164,16 +253,9 @@ describe('CurrentOrgPlan', () => {
   })
 
   describe('when info message cancellation should be shown', () => {
-    it('renders when subscription detail data is available', () => {
+    it('renders when subscription detail data is available', async () => {
       setup({
         accountDetails: {
-          plan: {
-            baseUnitPrice: 12,
-            billingRate: 'monthly',
-            marketingName: 'Pro',
-            quantity: 39,
-            value: 'users-pr-inappm',
-          },
           subscriptionDetail: {
             cancelAtPeriodEnd: true,
             currentPeriodEnd: 1722631954,
@@ -181,10 +263,11 @@ describe('CurrentOrgPlan', () => {
         } as z.infer<typeof AccountDetailsSchema>,
       })
 
-      render(<CurrentOrgPlan />, { wrapper })
-      expect(
-        screen.getByText('Subscription Pending Cancellation')
-      ).toBeInTheDocument()
+      render(<CurrentOrgPlan />, { wrapper: cancellationPlanWrapper })
+      const pendingCancellation = await screen.findByText(
+        /on August 2nd 2024, 8:52 p.m./
+      )
+      expect(pendingCancellation).toBeInTheDocument()
     })
   })
 
@@ -195,31 +278,27 @@ describe('CurrentOrgPlan', () => {
           accountDetails: {
             planProvider: 'gitlab',
             rootOrganization: null,
-            plan: {
-              value: 'users-free',
-              baseUnitPrice: 12,
-              benefits: ['a', 'b'],
-              billingRate: '1',
-              marketingName: 'bob',
-            },
             usesInvoice: false,
           } as z.infer<typeof AccountDetailsSchema>,
         })
       })
 
-      it('renders CurrentPlanCard', () => {
+      it('renders CurrentPlanCard', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/CurrentPlanCard/i)).toBeInTheDocument()
+        const currentPlanCard = await screen.findByText(/CurrentPlanCard/i)
+        expect(currentPlanCard).toBeInTheDocument()
       })
 
-      it('renders LatestInvoiceCard', () => {
+      it('renders LatestInvoiceCard', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/LatestInvoiceCard/i)).toBeInTheDocument()
+        const latestInvoiceCard = await screen.findByText(/LatestInvoiceCard/i)
+        expect(latestInvoiceCard).toBeInTheDocument()
       })
 
-      it('renders BillingDetails', () => {
+      it('renders BillingDetails', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/BillingDetails/i)).toBeInTheDocument()
+        const billingDetails = await screen.findByText(/BillingDetails/i)
+        expect(billingDetails).toBeInTheDocument()
       })
     })
     describe('when usesInvoice is true', () => {
@@ -228,31 +307,27 @@ describe('CurrentOrgPlan', () => {
           accountDetails: {
             planProvider: 'github',
             rootOrganization: {},
-            plan: {
-              value: 'users-free',
-              baseUnitPrice: 12,
-              benefits: ['a', 'b'],
-              billingRate: '1',
-              marketingName: 'bob',
-            },
             usesInvoice: true,
           } as z.infer<typeof AccountDetailsSchema>,
         })
       })
 
-      it('renders CurrentPlanCard', () => {
+      it('renders CurrentPlanCard', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/CurrentPlanCard/i)).toBeInTheDocument()
+        const currentPlanCard = await screen.findByText(/CurrentPlanCard/i)
+        expect(currentPlanCard).toBeInTheDocument()
       })
 
-      it('renders LatestInvoiceCard', () => {
+      it('renders LatestInvoiceCard', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/LatestInvoiceCard/i)).toBeInTheDocument()
+        const latestInvoiceCard = await screen.findByText(/LatestInvoiceCard/i)
+        expect(latestInvoiceCard).toBeInTheDocument()
       })
 
-      it('renders BillingDetails', () => {
+      it('renders BillingDetails', async () => {
         render(<CurrentOrgPlan />, { wrapper })
-        expect(screen.getByText(/BillingDetails/i)).toBeInTheDocument()
+        const billingDetails = await screen.findByText(/BillingDetails/i)
+        expect(billingDetails).toBeInTheDocument()
       })
     })
   })
@@ -260,28 +335,31 @@ describe('CurrentOrgPlan', () => {
   describe('when plan value is not provided', () => {
     beforeEach(() => {
       setup({
-        accountDetails: { plan: null } as z.infer<typeof AccountDetailsSchema>,
+        accountDetails: { ...mockedAccountDetails },
       })
     })
 
-    it('does not render CurrentPlanCard', () => {
+    it('does not render CurrentPlanCard', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.queryByText(/CurrentPlanCard/i)).not.toBeInTheDocument()
+      const currentPlanCard = screen.queryByText(/CurrentPlanCard/i)
+      expect(currentPlanCard).not.toBeInTheDocument()
     })
 
-    it('does not render LatestInvoiceCard', () => {
+    it('does not render LatestInvoiceCard', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.queryByText(/LatestInvoiceCard/i)).not.toBeInTheDocument()
+      const latestInvoiceCard = screen.queryByText(/LatestInvoiceCard/i)
+      expect(latestInvoiceCard).not.toBeInTheDocument()
     })
 
-    it('does not render BillingDetails', () => {
+    it('does not render BillingDetails', async () => {
       render(<CurrentOrgPlan />, { wrapper })
-      expect(screen.queryByText(/BillingDetails/i)).not.toBeInTheDocument()
+      const billingDetails = screen.queryByText(/BillingDetails/i)
+      expect(billingDetails).not.toBeInTheDocument()
     })
   })
 
   describe('when user is a delinquent', () => {
-    it('renders the delinquent banner', () => {
+    it('renders the delinquent banner', async () => {
       setup({
         accountDetails: {
           ...mockedAccountDetails,
@@ -290,14 +368,67 @@ describe('CurrentOrgPlan', () => {
       })
 
       render(<CurrentOrgPlan />, { wrapper })
-      expect(
-        screen.getByText('Your most recent payment failed')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText(
-          'Please try a different card or contact support at support@codecov.io.'
+      const paymentFailed = await screen.findByText(
+        'Your most recent payment failed'
+      )
+      expect(paymentFailed).toBeInTheDocument()
+      const contactSupport = await screen.findByText(
+        'Please try a different card or contact support at support@codecov.io.'
+      )
+      expect(contactSupport).toBeInTheDocument()
+    })
+  })
+
+  describe('when owner has an account', () => {
+    describe('and less than 90% of seats are in use', () => {
+      it('does not render a usage banner', async () => {
+        setup({
+          enterpriseAccountDetails: mockEnterpriseAccountDetails,
+        })
+
+        render(<CurrentOrgPlan />, { wrapper })
+
+        const currentPlanCard = await screen.findByText(/CurrentPlanCard/i)
+        expect(currentPlanCard).toBeInTheDocument()
+
+        const banner = screen.queryByText(/of its seats/)
+        expect(banner).not.toBeInTheDocument()
+      })
+    })
+    describe('and 100% of seats are in use', () => {
+      it('renders 100% usage banner', async () => {
+        setup({
+          enterpriseAccountDetails: mockEnterpriseAccountDetailsHundredPercent,
+        })
+        render(<CurrentOrgPlan />, { wrapper })
+
+        const banner = await screen.findByText(
+          /Your account is using 100% of its seats/
         )
-      ).toBeInTheDocument()
+        expect(banner).toBeInTheDocument()
+      })
+    })
+
+    describe('and seats used is >= 90%', () => {
+      it('renders 90% usage banner', async () => {
+        setup({
+          enterpriseAccountDetails: mockEnterpriseAccountDetailsNinetyPercent,
+        })
+
+        render(<CurrentOrgPlan />, { wrapper })
+        const banner = await screen.findByText(
+          /Your account is using 90% of its seats/
+        )
+        expect(banner).toBeInTheDocument()
+      })
+    })
+
+    it('renders AccountOrgs', async () => {
+      setup({ enterpriseAccountDetails: mockEnterpriseAccountDetails })
+      render(<CurrentOrgPlan />, { wrapper })
+
+      const accountOrgs = await screen.findByText(/AccountOrgs/)
+      expect(accountOrgs).toBeInTheDocument()
     })
   })
 })

@@ -1,10 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense } from 'react'
 import { Switch, useParams } from 'react-router-dom'
 
 import { SentryRoute } from 'sentry'
 
-import { useBranchBundleSummary } from 'services/bundleAnalysis'
-import { metrics } from 'shared/utils/metrics'
+import { useBranchBundleSummary } from 'services/bundleAnalysis/useBranchBundleSummary'
 import Spinner from 'ui/Spinner'
 import { ToggleElement } from 'ui/ToggleElement'
 
@@ -35,13 +34,10 @@ const Loader = () => (
 const BundleContent: React.FC = () => {
   const { provider, owner, repo, branch, bundle } = useParams<URLParams>()
 
-  useEffect(() => {
-    metrics.increment('bundles_tab.bundle_details.visited_page', 1)
-  }, [])
-
   const { data } = useBranchBundleSummary({ provider, owner, repo, branch })
 
-  const bundleType = data?.branch?.head?.bundleAnalysisReport?.__typename
+  const bundleType =
+    data?.branch?.head?.bundleAnalysis?.bundleAnalysisReport?.__typename
 
   return (
     <div>

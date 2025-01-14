@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import CommitDetailFileExplorer from './CommitDetailFileExplorer'
@@ -121,9 +121,11 @@ const mockFlagBackfillData = {
   },
   owner: {
     repository: {
-      flagsMeasurementsActive: true,
-      flagsMeasurementsBackfilled: true,
-      flagsCount: 4,
+      coverageAnalytics: {
+        flagsMeasurementsActive: true,
+        flagsMeasurementsBackfilled: true,
+        flagsCount: 4,
+      },
     },
   },
 }
@@ -133,7 +135,9 @@ const mockCommitComponentData = {
     repository: {
       __typename: 'Repository',
       commit: {
-        components: [{ name: 'component-1' }, { name: 'component-2' }],
+        coverageAnalytics: {
+          components: [{ name: 'component-1' }, { name: 'component-2' }],
+        },
       },
     },
   },
@@ -166,17 +170,19 @@ const mockOwnerTier = {
 const mockFlagsResponse = {
   owner: {
     repository: {
-      flags: {
-        edges: [
-          {
-            node: {
-              name: 'flag-1',
+      coverageAnalytics: {
+        flags: {
+          edges: [
+            {
+              node: {
+                name: 'flag-1',
+              },
             },
+          ],
+          pageInfo: {
+            hasNextPage: true,
+            endCursor: '1-flag-1',
           },
-        ],
-        pageInfo: {
-          hasNextPage: true,
-          endCursor: '1-flag-1',
         },
       },
     },
@@ -248,19 +254,19 @@ describe('CommitDetailFileExplorerTable', () => {
 
         return HttpResponse.json({ data: mockTreeData })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockFlagBackfillData })
       }),
-      graphql.query('CommitComponents', (info) => {
+      graphql.query('CommitComponents', () => {
         return HttpResponse.json({ data: mockCommitComponentData })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: mockOwnerTier })
       }),
-      graphql.query('FlagsSelect', (info) => {
+      graphql.query('FlagsSelect', () => {
         return HttpResponse.json({ data: mockFlagsResponse })
       })
     )

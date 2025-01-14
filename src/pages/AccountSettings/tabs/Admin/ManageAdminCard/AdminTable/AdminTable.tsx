@@ -10,7 +10,7 @@ import { useInView } from 'react-intersection-observer'
 import { useParams } from 'react-router-dom'
 
 import { useInfiniteUsers, useUpdateUser } from 'services/users'
-import { getOwnerImg } from 'shared/utils'
+import { getOwnerImg } from 'shared/utils/ownerHelpers'
 import Avatar, { DefaultAuthor } from 'ui/Avatar'
 import Button from 'ui/Button'
 import Icon from 'ui/Icon'
@@ -124,7 +124,6 @@ export default function AdminTable() {
             email: user.email,
             revoke: (
               <>
-                {/* @ts-expect-error */}
                 <Button
                   hook="toggle admin status"
                   disabled={isUpdatingUser}
@@ -164,7 +163,7 @@ export default function AdminTable() {
   if (!isLoading && !tableData?.length) {
     return (
       <p>
-        No admins yet. Note that admins in your Github organization are
+        No admins yet. Note that admins in your GitHub organization are
         automatically considered admins.
       </p>
     )

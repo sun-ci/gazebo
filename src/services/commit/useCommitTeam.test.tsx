@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useCommitTeam } from './useCommitTeam'
@@ -107,8 +107,10 @@ const mockCommitData = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -184,7 +186,7 @@ describe('useCommitTeam', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetCommitTeam', (info) => {
+      graphql.query('GetCommitTeam', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -197,7 +199,7 @@ describe('useCommitTeam', () => {
           return HttpResponse.json({ data: mockCommitData })
         }
       }),
-      graphql.query('GetCompareTotalsTeam', (info) => {
+      graphql.query('GetCompareTotalsTeam', () => {
         return HttpResponse.json({ data: mockCompareData })
       })
     )
@@ -351,6 +353,7 @@ describe('useCommitTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'useCommitTeam - 404 not found',
           })
         )
       )
@@ -388,6 +391,7 @@ describe('useCommitTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 403,
+            dev: 'useCommitTeam - 403 owner not activated',
           })
         )
       )
@@ -425,6 +429,7 @@ describe('useCommitTeam', () => {
         expect(result.current.error).toEqual(
           expect.objectContaining({
             status: 404,
+            dev: 'useCommitTeam - 404 failed to parse',
           })
         )
       )
@@ -436,10 +441,10 @@ describe('useCommitTeam polling', () => {
   function setup() {
     let nbCallCompare = 0
     server.use(
-      graphql.query(`GetCommitTeam`, (info) => {
+      graphql.query(`GetCommitTeam`, () => {
         return HttpResponse.json({ data: mockCommitData })
       }),
-      graphql.query(`GetCompareTotalsTeam`, (info) => {
+      graphql.query(`GetCompareTotalsTeam`, () => {
         nbCallCompare++
 
         if (nbCallCompare < 9) {

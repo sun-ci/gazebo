@@ -1,12 +1,18 @@
-import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
+import { render, screen } from '@testing-library/react'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
+import MockResizeObserver from 'resize-observer-polyfill'
 
 import BundleContent from './BundleContent'
+
+global.ResizeObserver = MockResizeObserver
 
 vi.mock('./BundleSelection', () => ({
   default: () => <div>BundleSelection</div>,
@@ -35,21 +41,23 @@ const mockBranchBundles = {
       branch: {
         head: {
           commitid: '543a5268dce725d85be7747c0f9b61e9a68dea57',
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundleData: {
-              loadTime: { threeG: 200 },
-              size: { uncompress: 100 },
-            },
-            bundles: [
-              {
-                name: 'bundle1',
-                bundleData: {
-                  loadTime: { threeG: 100 },
-                  size: { uncompress: 50 },
-                },
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundleData: {
+                loadTime: { threeG: 200 },
+                size: { uncompress: 100 },
               },
-            ],
+              bundles: [
+                {
+                  name: 'bundle1',
+                  bundleData: {
+                    loadTime: { threeG: 100 },
+                    size: { uncompress: 50 },
+                  },
+                },
+              ],
+            },
           },
         },
       },
@@ -64,9 +72,11 @@ const mockBranchBundlesError = {
       branch: {
         head: {
           commitid: '543a5268dce725d85be7747c0f9b61e9a68dea57',
-          bundleAnalysisReport: {
-            __typename: 'MissingHeadReport',
-            message: 'Missing head report',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'MissingHeadReport',
+              message: 'Missing head report',
+            },
           },
         },
       },
@@ -89,46 +99,42 @@ const mockAssets = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              bundleData: {
-                size: {
-                  uncompress: 12,
-                },
-              },
-              assetsPaginated: {
-                edges: [
-                  {
-                    node: {
-                      name: 'asset-1',
-                      extension: 'js',
-                      bundleData: {
-                        loadTime: {
-                          threeG: 2000,
-                          highSpeed: 2000,
-                        },
-                        size: {
-                          uncompress: 3000,
-                          gzip: 4000,
-                        },
-                      },
-                      measurements: {
-                        change: {
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                info: { pluginName: '@codecov/vite-plugin' },
+                bundleData: { size: { uncompress: 12 } },
+                assetsPaginated: {
+                  edges: [
+                    {
+                      node: {
+                        name: 'asset-1',
+                        routes: ['/'],
+                        extension: 'js',
+                        bundleData: {
+                          loadTime: {
+                            threeG: 2000,
+                            highSpeed: 2000,
+                          },
                           size: {
-                            uncompress: 5,
+                            uncompress: 3000,
+                            gzip: 4000,
                           },
                         },
-                        measurements: [
-                          { timestamp: '2022-10-10T11:59:59', avg: 6 },
-                        ],
+                        measurements: {
+                          change: { size: { uncompress: 5 } },
+                          measurements: [
+                            { timestamp: '2022-10-10T11:59:59', avg: 6 },
+                          ],
+                        },
                       },
                     },
+                  ],
+                  pageInfo: {
+                    hasNextPage: false,
+                    endCursor: null,
                   },
-                ],
-                pageInfo: {
-                  hasNextPage: false,
-                  endCursor: null,
                 },
               },
             },
@@ -145,9 +151,11 @@ const mockMissingHeadReportAssets = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'MissingHeadReport',
-            message: 'Missing head report',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'MissingHeadReport',
+              message: 'Missing head report',
+            },
           },
         },
       },
@@ -161,40 +169,33 @@ const mockBundleTrendData = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              measurements: [
-                {
-                  assetType: 'REPORT_SIZE',
-                  measurements: [
-                    {
-                      timestamp: '2024-06-15T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-16T00:00:00+00:00',
-                      avg: null,
-                    },
-                    {
-                      timestamp: '2024-06-17T00:00:00+00:00',
-                      avg: 6834699.8,
-                    },
-                    {
-                      timestamp: '2024-06-18T00:00:00+00:00',
-                      avg: 6822037.27273,
-                    },
-                    {
-                      timestamp: '2024-06-19T00:00:00+00:00',
-                      avg: 6824833.33333,
-                    },
-                    {
-                      timestamp: '2024-06-20T00:00:00+00:00',
-                      avg: 6812341,
-                    },
-                  ],
-                },
-              ],
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                measurements: [
+                  {
+                    assetType: 'REPORT_SIZE',
+                    measurements: [
+                      { timestamp: '2024-06-15T00:00:00+00:00', avg: null },
+                      { timestamp: '2024-06-16T00:00:00+00:00', avg: null },
+                      {
+                        timestamp: '2024-06-17T00:00:00+00:00',
+                        avg: 6834699.8,
+                      },
+                      {
+                        timestamp: '2024-06-18T00:00:00+00:00',
+                        avg: 6822037.27273,
+                      },
+                      {
+                        timestamp: '2024-06-19T00:00:00+00:00',
+                        avg: 6824833.33333,
+                      },
+                      { timestamp: '2024-06-20T00:00:00+00:00', avg: 6812341 },
+                    ],
+                  },
+                ],
+              },
             },
           },
         },
@@ -209,19 +210,21 @@ const mockBundleSummary = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              name: 'bundle1',
-              moduleCount: 10,
-              bundleData: {
-                loadTime: {
-                  threeG: 1000,
-                  highSpeed: 500,
-                },
-                size: {
-                  gzip: 1000,
-                  uncompress: 2000,
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                name: 'bundle1',
+                moduleCount: 10,
+                bundleData: {
+                  loadTime: {
+                    threeG: 1000,
+                    highSpeed: 500,
+                  },
+                  size: {
+                    gzip: 1000,
+                    uncompress: 2000,
+                  },
                 },
               },
             },
@@ -236,25 +239,30 @@ const server = setupServer()
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, suspense: true } },
 })
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
+})
 
 const wrapper =
   (
     initialEntries = '/gh/codecov/test-repo/bundles'
   ): React.FC<React.PropsWithChildren> =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntries]}>
-        <Route
-          path={[
-            '/:provider/:owner/:repo/bundles/:branch/:bundle',
-            '/:provider/:owner/:repo/bundles/:branch',
-            '/:provider/:owner/:repo/bundles',
-          ]}
-        >
-          <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
-        </Route>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialEntries]}>
+          <Route
+            path={[
+              '/:provider/:owner/:repo/bundles/:branch/:bundle',
+              '/:provider/:owner/:repo/bundles/:branch',
+              '/:provider/:owner/:repo/bundles',
+            ]}
+          >
+            <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
+          </Route>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 beforeAll(() => {
@@ -263,6 +271,7 @@ beforeAll(() => {
 
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 
@@ -281,7 +290,7 @@ describe('BundleContent', () => {
     isEmptyBundleSelection = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('BranchBundleSummaryData', (info) => {
+      graphql.query('BranchBundleSummaryData', () => {
         if (isBundleError) {
           return HttpResponse.json({ data: mockBranchBundlesError })
         } else if (isEmptyBundleSelection) {
@@ -289,37 +298,24 @@ describe('BundleContent', () => {
         }
         return HttpResponse.json({ data: mockBranchBundles })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
       }),
-      graphql.query('BundleAssets', (info) => {
+      graphql.query('BundleAssets', () => {
         if (isBundleError) {
           return HttpResponse.json({ data: mockMissingHeadReportAssets })
         }
 
         return HttpResponse.json({ data: mockAssets })
       }),
-      graphql.query('GetBundleTrend', (info) => {
+      graphql.query('GetBundleTrend', () => {
         return HttpResponse.json({ data: mockBundleTrendData })
       }),
-      graphql.query('BundleSummary', (info) => {
+      graphql.query('BundleSummary', () => {
         return HttpResponse.json({ data: mockBundleSummary })
       })
     )
   }
-
-  it('sends bundle tab metric to sentry', async () => {
-    setup({})
-    render(<BundleContent />, { wrapper: wrapper() })
-
-    await waitFor(() =>
-      expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-        'bundles_tab.bundle_details.visited_page',
-        1,
-        undefined
-      )
-    )
-  })
 
   describe('rendering select section', () => {
     it('renders the bundle summary', async () => {
@@ -415,8 +411,8 @@ describe('BundleContent', () => {
           expect(banner).toBeInTheDocument()
 
           const dashes = await screen.findAllByText('-')
-          // has length 8 because bundle details being moved to this component
-          expect(dashes).toHaveLength(8)
+          // has length 9 because bundle details being moved to this component
+          expect(dashes).toHaveLength(9)
         })
       })
 
@@ -431,8 +427,8 @@ describe('BundleContent', () => {
           expect(banner).toBeInTheDocument()
 
           const dashes = await screen.findAllByText('-')
-          // has length 8 because bundle details being moved to this component
-          expect(dashes).toHaveLength(8)
+          // has length 9 because bundle details being moved to this component
+          expect(dashes).toHaveLength(9)
         })
       })
     })
@@ -460,7 +456,7 @@ describe('BundleContent', () => {
         })
 
         const dashes = await screen.findAllByText('-')
-        expect(dashes).toHaveLength(4)
+        expect(dashes).toHaveLength(5)
       })
     })
 
@@ -488,8 +484,8 @@ describe('BundleContent', () => {
           })
 
           const dashes = await screen.findAllByText('-')
-          // has length 8 because bundle details being moved to this component
-          expect(dashes).toHaveLength(8)
+          // has length 9 because bundle details being moved to this component
+          expect(dashes).toHaveLength(9)
         })
       })
 
@@ -516,8 +512,8 @@ describe('BundleContent', () => {
           })
 
           const dashes = await screen.findAllByText('-')
-          // has length 8 because bundle details being moved to this component
-          expect(dashes).toHaveLength(8)
+          // has length 9 because bundle details being moved to this component
+          expect(dashes).toHaveLength(9)
         })
       })
     })

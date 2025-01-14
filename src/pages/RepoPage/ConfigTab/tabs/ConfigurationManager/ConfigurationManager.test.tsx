@@ -1,13 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router'
 
 import { TierNames, TTierNames } from 'services/tier'
 
 import ConfigurationManager from './ConfigurationManager'
-import { RepositoryConfiguration } from './hooks/useRepoConfigurationStatus/useRepoConfigurationStatus'
+import { RepositoryConfiguration } from './hooks/useRepoConfigurationStatus/RepoConfigurationStatusQueryOpts'
 
 interface mockRepoConfigArgs {
   tierName?: TTierNames
@@ -38,31 +42,34 @@ function mockRepoConfig({
     },
     repository: {
       __typename: 'Repository',
-      flagsCount: flags ? 1 : 0,
-      componentsCount: components ? 1 : 0,
       coverageEnabled: coverage,
       bundleAnalysisEnabled: bundleAnalysis,
       testAnalyticsEnabled: testAnalytics,
       yaml,
       languages,
+      coverageAnalytics: {
+        flagsCount: flags ? 1 : 0,
+        componentsCount: components ? 1 : 0,
+      },
     },
   }
 }
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
+  defaultOptions: { queries: { retry: false } },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
 })
 const server = setupServer()
 const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>
-    <MemoryRouter initialEntries={['/gh/codecov/cool-repo/config']}>
-      <Route path="/:provider/:owner/:repo/config">{children}</Route>
-    </MemoryRouter>
-  </QueryClientProvider>
+  <QueryClientProviderV5 client={queryClientV5}>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/gh/codecov/cool-repo/config']}>
+        <Route path="/:provider/:owner/:repo/config">{children}</Route>
+      </MemoryRouter>
+    </QueryClientProvider>
+  </QueryClientProviderV5>
 )
 
 beforeAll(() => {
@@ -70,6 +77,7 @@ beforeAll(() => {
 })
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 afterAll(() => {
@@ -83,7 +91,7 @@ interface SetupArgs {
 describe('Configuration Manager', () => {
   function setup({ repoConfig = mockRepoConfig({}) }: SetupArgs) {
     server.use(
-      graphql.query('GetRepoConfigurationStatus', (info) => {
+      graphql.query('GetRepoConfigurationStatus', () => {
         return HttpResponse.json({ data: { owner: repoConfig } })
       })
     )

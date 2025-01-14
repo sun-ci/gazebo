@@ -14,8 +14,8 @@ import {
   RepoOwnerNotActivatedErrorSchema,
 } from 'services/repo/schemas'
 import Api from 'shared/api'
+import { type NetworkErrorObject } from 'shared/api/helpers'
 import { UploadTypeEnum } from 'shared/utils/commit'
-import { userHasAccess } from 'shared/utils/user'
 import A from 'ui/A'
 
 import { PullCompareWithBaseFragment } from './fragments'
@@ -33,10 +33,10 @@ export const OrderingParameter = {
   CHANGE_COVERAGE: 'CHANGE_COVERAGE',
 } as const
 
-const ImpactedFilesOrdering = z.object({
-  direction: z.nativeEnum(OrderingDirection).optional(),
-  parameter: z.nativeEnum(OrderingParameter).optional(),
-})
+interface ImpactedFilesOrdering {
+  direction?: (typeof OrderingDirection)[keyof typeof OrderingDirection]
+  parameter?: (typeof OrderingParameter)[keyof typeof OrderingParameter]
+}
 
 const percentCoveredSchema = z.object({
   percentCovered: z.number().nullable(),
@@ -60,7 +60,7 @@ export type ImpactedFile = z.infer<typeof ImpactedFileSchema>
 const ImpactedFilesSchema = z.discriminatedUnion('__typename', [
   z.object({
     __typename: z.literal('ImpactedFiles'),
-    results: z.array(ImpactedFileSchema),
+    results: z.array(ImpactedFileSchema).nullable(),
   }),
   z.object({
     __typename: z.literal('UnknownFlags'),
@@ -156,9 +156,13 @@ const PullSchema = z.object({
       ciPassed: z.boolean().nullable(),
       branchName: z.string().nullable(),
       commitid: z.string().nullable(),
-      totals: z
+      coverageAnalytics: z
         .object({
-          percentCovered: z.number().nullable(),
+          totals: z
+            .object({
+              percentCovered: z.number().nullable(),
+            })
+            .nullable(),
         })
         .nullable(),
       uploads: UploadsSchema.nullable(),
@@ -182,7 +186,6 @@ export type PullSchemaType = z.infer<typeof PullSchema>
 
 const RepositorySchema = z.object({
   defaultBranch: z.string().nullable(),
-  private: z.boolean(),
   __typename: z.literal('Repository'),
   pull: PullSchema.nullable(),
 })
@@ -190,7 +193,6 @@ const RepositorySchema = z.object({
 const RequestSchema = z.object({
   owner: z
     .object({
-      isCurrentUserPartOfOrg: z.boolean(),
       repository: z.discriminatedUnion('__typename', [
         RepositorySchema,
         RepoNotFoundErrorSchema,
@@ -212,7 +214,6 @@ const query = `query Pull(
       __typename
       ... on Repository {
         defaultBranch
-      	private
         pull(id: $pullId) {
           behindBy
           behindByCommit
@@ -228,8 +229,10 @@ const query = `query Pull(
             ciPassed
             branchName
             commitid
-            totals {
-              percentCovered
+            coverageAnalytics {
+              totals {
+                percentCovered
+              }
             }
             uploads {
               totalCount
@@ -287,7 +290,7 @@ interface UsePullArgs {
   pullId: string
   filters?: {
     hasUnintendedChanges?: boolean
-    ordering?: z.infer<typeof ImpactedFilesOrdering>
+    ordering?: ImpactedFilesOrdering
   }
   options?: {
     suspense?: boolean
@@ -323,7 +326,8 @@ export function usePull({
           return Promise.reject({
             status: 404,
             data: {},
-          })
+            dev: 'usePull - 404 failed to parse',
+          } satisfies NetworkErrorObject)
         }
 
         const data = parsedRes.data
@@ -332,7 +336,8 @@ export function usePull({
           return Promise.reject({
             status: 404,
             data: {},
-          })
+            dev: 'usePull - 404 not found',
+          } satisfies NetworkErrorObject)
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
@@ -342,13 +347,14 @@ export function usePull({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet*/}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>
               ),
             },
-          })
+            dev: 'usePull - 403 owner not activated',
+          } satisfies NetworkErrorObject)
         }
 
         const pull = data?.owner?.repository?.pull
@@ -362,10 +368,6 @@ export function usePull({
           pull: {
             ...pull,
           },
-          hasAccess: userHasAccess({
-            privateRepo: data?.owner?.repository?.private,
-            isCurrentUserPartOfOrg: data?.owner?.isCurrentUserPartOfOrg,
-          }),
           defaultBranch: data?.owner?.repository?.defaultBranch,
         }
       }),

@@ -2,17 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 
 import Api from 'shared/api'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
-const IndividualPlanSchema = z
-  .object({
-    baseUnitPrice: z.number(),
-    benefits: z.array(z.string()),
-    billingRate: z.string().nullable(),
-    marketingName: z.string(),
-    monthlyUploadLimit: z.number().nullable(),
-    value: z.string(),
-  })
-  .nullable()
+const IndividualPlanSchema = z.object({
+  baseUnitPrice: z.number(),
+  benefits: z.array(z.string()),
+  billingRate: z.nativeEnum(BillingRate).nullish(),
+  isTeamPlan: z.boolean(),
+  isSentryPlan: z.boolean(),
+  marketingName: z.string(),
+  monthlyUploadLimit: z.number().nullable(),
+  value: z.nativeEnum(Plans),
+})
 
 export type IndividualPlan = z.infer<typeof IndividualPlanSchema>
 
@@ -33,6 +34,8 @@ const query = `
         baseUnitPrice
         benefits
         billingRate
+        isSentryPlan
+        isTeamPlan
         marketingName
         monthlyUploadLimit
         value

@@ -1,16 +1,40 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { Suspense } from 'react'
 import { mockIsIntersecting } from 'react-intersection-observer/test-utils'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { AssetsTable, ChangeOverTime } from './AssetsTable'
 
-const mockAssets = (hasNextPage = true) => {
+const mocks = vi.hoisted(() => ({
+  useFlags: vi.fn().mockReturnValue({ renderBundleFilePathColumn: true }),
+}))
+
+vi.mock('shared/featureFlags', async () => {
+  const original = await vi.importActual('shared/featureFlags')
+  return {
+    ...original,
+    useFlags: mocks.useFlags,
+  }
+})
+
+const mockAssets = ({
+  hasNextPage = true,
+  pluginName = '@codecov/vite-plugin',
+}: {
+  hasNextPage?: boolean
+  pluginName?: string
+}) => {
   const asset1 = {
     name: 'asset-1',
+    routes: ['/'],
     extension: 'js',
     bundleData: {
       loadTime: { threeG: 2000, highSpeed: 2000 },
@@ -27,6 +51,7 @@ const mockAssets = (hasNextPage = true) => {
 
   const asset2 = {
     name: 'asset-2',
+    routes: ['/about'],
     extension: 'js',
     bundleData: {
       loadTime: { threeG: 2000, highSpeed: 2000 },
@@ -43,6 +68,7 @@ const mockAssets = (hasNextPage = true) => {
 
   const asset3 = {
     name: 'asset-3',
+    routes: ['/login'],
     extension: 'js',
     bundleData: {
       loadTime: { threeG: 2000, highSpeed: 2000 },
@@ -57,22 +83,25 @@ const mockAssets = (hasNextPage = true) => {
         __typename: 'Repository',
         branch: {
           head: {
-            bundleAnalysisReport: {
-              __typename: 'BundleAnalysisReport',
-              bundle: {
-                bundleData: { size: { uncompress: 6000 } },
-                assetsPaginated: {
-                  edges: [
-                    { node: asset1 },
-                    ...(hasNextPage
-                      ? [{ node: asset2 }, { node: asset3 }]
-                      : []),
-                  ],
-                  pageInfo: {
-                    hasNextPage: hasNextPage,
-                    endCursor: hasNextPage
-                      ? 'MjAyMC0wOC0xMSAxNzozMDowMiswMDowMHwxMDA'
-                      : null,
+            bundleAnalysis: {
+              bundleAnalysisReport: {
+                __typename: 'BundleAnalysisReport',
+                bundle: {
+                  info: { pluginName },
+                  bundleData: { size: { uncompress: 6000 } },
+                  assetsPaginated: {
+                    edges: [
+                      { node: asset1 },
+                      ...(hasNextPage
+                        ? [{ node: asset2 }, { node: asset3 }]
+                        : []),
+                    ],
+                    pageInfo: {
+                      hasNextPage: hasNextPage,
+                      endCursor: hasNextPage
+                        ? 'MjAyMC0wOC0xMSAxNzozMDowMiswMDowMHwxMDA'
+                        : null,
+                    },
                   },
                 },
               },
@@ -90,32 +119,13 @@ const mockBundleAssetModules = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              bundleData: { size: { uncompress: 12 } },
-              asset: { modules: [] },
-            },
-          },
-        },
-      },
-    },
-  },
-}
-
-const mockEmptyAssets = {
-  owner: {
-    repository: {
-      __typename: 'Repository',
-      branch: {
-        head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              bundleData: { size: { uncompress: 12 } },
-              assetsPaginated: {
-                edges: [],
-                pageInfo: { hasNextPage: false, endCursor: null },
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                info: { pluginName: '@codecov/vite-plugin' },
+                bundleData: { size: { uncompress: 12 } },
+                asset: { modules: [] },
               },
             },
           },
@@ -125,15 +135,42 @@ const mockEmptyAssets = {
   },
 }
 
+const mockEmptyAssets = (pluginName: string) => ({
+  owner: {
+    repository: {
+      __typename: 'Repository',
+      branch: {
+        head: {
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                info: { pluginName },
+                bundleData: { size: { uncompress: 12 } },
+                assetsPaginated: {
+                  edges: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+})
+
 const mockMissingHeadReport = {
   owner: {
     repository: {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'MissingHeadReport',
-            message: 'Missing head report',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'MissingHeadReport',
+              message: 'Missing head report',
+            },
           },
         },
       },
@@ -159,23 +196,26 @@ const mockRepoOverview = {
 
 const server = setupServer()
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
+  defaultOptions: { queries: { retry: false } },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
 })
 
 const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>
-    <MemoryRouter
-      initialEntries={['/gh/codecov/test-repo/bundles/test-branch/test-bundle']}
-    >
-      <Route path="/:provider/:owner/:repo/bundles/:branch/:bundle">
-        {children}
-      </Route>
-    </MemoryRouter>
-  </QueryClientProvider>
+  <QueryClientProviderV5 client={queryClientV5}>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter
+        initialEntries={[
+          '/gh/codecov/test-repo/bundles/test-branch/test-bundle',
+        ]}
+      >
+        <Route path="/:provider/:owner/:repo/bundles/:branch/:bundle">
+          <Suspense fallback={<div>Loading</div>}>{children}</Suspense>
+        </Route>
+      </MemoryRouter>
+    </QueryClientProvider>
+  </QueryClientProviderV5>
 )
 
 beforeAll(() => {
@@ -184,6 +224,7 @@ beforeAll(() => {
 
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 
@@ -195,6 +236,7 @@ interface SetupArgs {
   isEmptyBundles?: boolean
   isMissingHeadReport?: boolean
   multipleAssets?: boolean
+  pluginName?: string
 }
 
 describe('AssetsTable', () => {
@@ -202,15 +244,16 @@ describe('AssetsTable', () => {
     isEmptyBundles = false,
     isMissingHeadReport = false,
     multipleAssets = true,
+    pluginName = '@codecov/vite-plugin',
   }: SetupArgs) {
     const user = userEvent.setup()
-    const mockOrdering = jest.fn()
-    const mockOrderingDirection = jest.fn()
+    const mockOrdering = vi.fn()
+    const mockOrderingDirection = vi.fn()
 
     server.use(
       graphql.query('BundleAssets', (info) => {
         if (isEmptyBundles) {
-          return HttpResponse.json({ data: mockEmptyAssets })
+          return HttpResponse.json({ data: mockEmptyAssets(pluginName) })
         } else if (isMissingHeadReport) {
           return HttpResponse.json({ data: mockMissingHeadReport })
         }
@@ -227,12 +270,14 @@ describe('AssetsTable', () => {
           multipleAssets = true
         }
 
-        return HttpResponse.json({ data: mockAssets(multipleAssets) })
+        return HttpResponse.json({
+          data: mockAssets({ hasNextPage: multipleAssets, pluginName }),
+        })
       }),
-      graphql.query('BundleAssetModules', (info) => {
+      graphql.query('BundleAssetModules', () => {
         return HttpResponse.json({ data: mockBundleAssetModules })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
       })
     )
@@ -241,17 +286,35 @@ describe('AssetsTable', () => {
   }
 
   describe('there is no data', () => {
-    it('renders the empty table', async () => {
-      setup({ isEmptyBundles: true })
-      render(<AssetsTable />, { wrapper })
+    describe('non-file path plugin', () => {
+      it('renders the empty table with 5 dashes', async () => {
+        setup({ isEmptyBundles: true })
+        render(<AssetsTable />, { wrapper })
 
-      const tableRoles = await screen.findAllByRole('row')
-      expect(tableRoles).toHaveLength(2)
+        const tableRoles = await screen.findAllByRole('row')
+        expect(tableRoles).toHaveLength(2)
 
-      const tableCells = await within(tableRoles[1]!).findAllByRole('cell')
-      expect(tableCells).toHaveLength(4)
-      tableCells.forEach((cell) => {
-        expect(cell).toHaveTextContent('-')
+        const tableCells = await within(tableRoles[1]!).findAllByRole('cell')
+        expect(tableCells).toHaveLength(5)
+        tableCells.forEach((cell) => {
+          expect(cell).toHaveTextContent('-')
+        })
+      })
+    })
+
+    describe('file path plugin', () => {
+      it('renders the empty table with 6 dashes', async () => {
+        setup({ isEmptyBundles: true, pluginName: '@codecov/sveltekit-plugin' })
+        render(<AssetsTable />, { wrapper })
+
+        const tableRoles = await screen.findAllByRole('row')
+        expect(tableRoles).toHaveLength(2)
+
+        const tableCells = await within(tableRoles[1]!).findAllByRole('cell')
+        expect(tableCells).toHaveLength(6)
+        tableCells.forEach((cell) => {
+          expect(cell).toHaveTextContent('-')
+        })
       })
     })
   })
@@ -265,7 +328,7 @@ describe('AssetsTable', () => {
       expect(tableRoles).toHaveLength(2)
 
       const tableCells = await within(tableRoles[1]!).findAllByRole('cell')
-      expect(tableCells).toHaveLength(4)
+      expect(tableCells).toHaveLength(5)
       tableCells.forEach((cell) => {
         expect(cell).toHaveTextContent('-')
       })
@@ -282,19 +345,21 @@ describe('AssetsTable', () => {
         expect(asset).toBeInTheDocument()
       })
 
-      it('renders type column', async () => {
-        setup({})
-        render(<AssetsTable />, { wrapper })
+      describe('file path plugin', () => {
+        it('renders file path column', async () => {
+          setup({ pluginName: '@codecov/sveltekit-plugin' })
+          render(<AssetsTable />, { wrapper })
 
-        const type = await screen.findByText('Type')
-        expect(type).toBeInTheDocument()
+          const filePath = await screen.findByText('File path')
+          expect(filePath).toBeInTheDocument()
+        })
       })
 
       it('renders load time column', async () => {
         setup({})
         render(<AssetsTable />, { wrapper })
 
-        const loadTime = await screen.findByText('Estimated load time (3G)')
+        const loadTime = await screen.findByText('Est. load time (3G)')
         expect(loadTime).toBeInTheDocument()
       })
 
@@ -322,6 +387,16 @@ describe('AssetsTable', () => {
 
         const asset = await screen.findByText('asset-1')
         expect(asset).toBeInTheDocument()
+      })
+
+      describe('file path plugin', () => {
+        it('renders file path column', async () => {
+          setup({ pluginName: '@codecov/sveltekit-plugin' })
+          render(<AssetsTable />, { wrapper })
+
+          const filePath = await screen.findByText('/login')
+          expect(filePath).toBeInTheDocument()
+        })
       })
 
       it('renders type column', async () => {
@@ -415,9 +490,7 @@ describe('AssetsTable', () => {
           const { user, mockOrdering } = setup({ multipleAssets: false })
           render(<AssetsTable />, { wrapper })
 
-          const loadTimeColumn = await screen.findByText(
-            'Estimated load time (3G)'
-          )
+          const loadTimeColumn = await screen.findByText('Est. load time (3G)')
           await user.click(loadTimeColumn)
 
           await waitFor(() => expect(mockOrdering).toHaveBeenCalledWith('SIZE'))

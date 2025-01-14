@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -56,7 +56,7 @@ interface SetupArgs {
 describe('Header', () => {
   function setup({ isTeam = false, isPrivate = false }: SetupArgs) {
     server.use(
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (isTeam) {
           return HttpResponse.json({
             data: { owner: { plan: { tierName: TierNames.TEAM } } },
@@ -66,7 +66,7 @@ describe('Header', () => {
           data: { owner: { plan: { tierName: TierNames.PRO } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({
           data: mockRepoSettings(isPrivate),
         })

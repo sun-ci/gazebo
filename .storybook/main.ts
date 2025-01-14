@@ -1,27 +1,19 @@
-import type { StorybookConfig } from '@storybook/react-webpack5'
+import type { StorybookConfig } from '@storybook/react-vite'
 
 const config: StorybookConfig = {
-  framework: {
-    name: '@storybook/react-webpack5',
-    options: {
-      fastRefresh: true,
-    },
+  framework: '@storybook/react-vite',
+  core: {
+    builder: '@storybook/builder-vite',
   },
-
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|ts|tsx)'],
-
   addons: [
     '@storybook/addon-a11y',
     '@storybook/addon-links',
     '@storybook/addon-essentials',
-    '@storybook/preset-create-react-app',
     '@chromatic-com/storybook',
   ],
-
   docs: {},
-
   staticDirs: ['../public'],
-
   typescript: {
     reactDocgen: 'react-docgen-typescript',
   },

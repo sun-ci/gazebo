@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import config from 'config'
 
 import { SentryBugReporter } from 'sentry'
+
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import DefaultOrgSelector from './DefaultOrgSelector'
 
@@ -35,10 +37,10 @@ const server = setupServer()
 const mockTrialData = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: 'ONGOING',
   trialStartDate: '2023-01-01T08:55:25',
   trialEndDate: '2023-01-10T08:55:25',
@@ -72,7 +74,7 @@ const mockUserData = {
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -116,7 +118,7 @@ const mockBusinessUserData = {
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -157,6 +159,7 @@ const wrapper =
   )
 
 beforeAll(() => {
+  console.error = () => {}
   server.listen({
     onUnhandledRequest: 'warn',
   })
@@ -167,6 +170,7 @@ afterEach(() => {
 })
 afterAll(() => {
   server.close()
+  vi.resetAllMocks()
 })
 
 describe('DefaultOrgSelector', () => {
@@ -177,7 +181,7 @@ describe('DefaultOrgSelector', () => {
     useUserData,
     isValidUser = true,
     trialStatus = 'NOT_STARTED',
-    value = 'users-basic',
+    value = Plans.USERS_BASIC,
     privateRepos = true,
   } = {}) {
     const mockMutationVariables = vi.fn()
@@ -187,38 +191,46 @@ describe('DefaultOrgSelector', () => {
     window.open = mockWindow
     const fetchNextPage = vi.fn()
     config.SENTRY_DSN = undefined
+    config.GH_APP = 'codecov'
     const user = userEvent.setup()
 
     server.use(
       graphql.query('UseMyOrganizations', (info) => {
-        if (!!info.variables.after) {
+        if (info.variables.after) {
           fetchNextPage(info.variables.after)
         }
         return HttpResponse.json({ data: myOrganizationsData })
       }),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         if (!isValidUser) {
           return HttpResponse.json({ data: { me: null } })
         }
         return HttpResponse.json({ data: useUserData })
       }),
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
               hasPrivateRepos: privateRepos,
               plan: {
                 ...mockTrialData,
+                isEnterprisePlan: false,
+                isProPlan: false,
+                isFreePlan: value === Plans.USERS_BASIC,
+                isTeamPlan:
+                  value === Plans.USERS_TEAMM || value === Plans.USERS_TEAMY,
+                isTrialPlan: value === Plans.USERS_TRIAL,
+                isSentryPlan: false,
                 trialStatus,
                 value,
               },
               pretrialPlan: {
                 baseUnitPrice: 10,
                 benefits: [],
-                billingRate: 'monthly',
+                billingRate: BillingRate.MONTHLY,
                 marketingName: 'Users Basic',
                 monthlyUploadLimit: 250,
-                value: 'users-basic',
+                value: Plans.USERS_BASIC,
               },
             },
           },
@@ -822,7 +834,7 @@ describe('DefaultOrgSelector', () => {
     it('does not fire trial mutation', async () => {
       const { user, mockTrialMutationVariables } = setup({
         useUserData: mockUserData,
-        value: 'users-free',
+        value: Plans.USERS_FREE,
         myOrganizationsData: {
           me: {
             myOrganizations: {
@@ -1063,7 +1075,7 @@ describe('DefaultOrgSelector', () => {
             },
           },
         },
-        value: 'users-basic',
+        value: Plans.USERS_BASIC,
       })
 
       render(<DefaultOrgSelector />, { wrapper: wrapper() })
@@ -1126,7 +1138,7 @@ describe('DefaultOrgSelector', () => {
             },
           },
         },
-        value: 'users-basic',
+        value: Plans.USERS_BASIC,
         privateRepos: false,
       })
 
@@ -1289,7 +1301,7 @@ describe('DefaultOrgSelector', () => {
 
   describe('on fetch next page', () => {
     it('renders next page', async () => {
-      const { user, fetchNextPage } = setup({
+      const { fetchNextPage } = setup({
         useUserData: mockUserData,
         myOrganizationsData: {
           me: {
@@ -1310,12 +1322,6 @@ describe('DefaultOrgSelector', () => {
 
       render(<DefaultOrgSelector />, { wrapper: wrapper() })
       mocks.useIntersection.mockReturnValue({ isIntersecting: true })
-
-      const selectOrg = await screen.findByRole('button', {
-        name: 'Select an organization',
-      })
-
-      await user.click(selectOrg)
 
       await waitFor(() => expect(fetchNextPage).toHaveBeenCalled())
       await waitFor(() => expect(fetchNextPage).toHaveBeenCalledWith('MTI='))

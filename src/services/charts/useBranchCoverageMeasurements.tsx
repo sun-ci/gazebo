@@ -1,4 +1,4 @@
-import { QueryOptions, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 
 import {
@@ -9,13 +9,10 @@ import Api from 'shared/api'
 import { NetworkErrorObject } from 'shared/api/helpers'
 import A from 'ui/A'
 
-const MEASUREMENT_INTERVALS = {
-  INTERVAL_1_DAY: 'INTERVAL_1_DAY',
-  INTERVAL_7_DAY: 'INTERVAL_7_DAY',
-  INTERVAL_30_DAY: 'INTERVAL_30_DAY',
-} as const
-
-type MeasurementIntervals = keyof typeof MEASUREMENT_INTERVALS
+type MeasurementIntervals =
+  | 'INTERVAL_1_DAY'
+  | 'INTERVAL_7_DAY'
+  | 'INTERVAL_30_DAY'
 
 const MeasurementsSchema = z.object({
   measurements: z.array(
@@ -25,8 +22,6 @@ const MeasurementsSchema = z.object({
     })
   ),
 })
-
-type Measurements = z.infer<typeof MeasurementsSchema>
 
 const GetBranchCoverageMeasurementsSchema = z.object({
   owner: z
@@ -85,10 +80,15 @@ interface UseBranchCoverageMeasurementsArgs {
   owner: string
   repo: string
   interval: MeasurementIntervals
-  before: Date
-  after: Date
+  before: Date | null
+  after: Date | null
   branch: string
-  opts?: QueryOptions<Measurements>
+  opts?: {
+    enabled?: boolean
+    suspense?: boolean
+    keepPreviousData?: boolean
+    staleTime?: number
+  }
 }
 
 export const useBranchCoverageMeasurements = ({
@@ -157,7 +157,7 @@ export const useBranchCoverageMeasurements = ({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>

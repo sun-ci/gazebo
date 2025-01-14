@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { PullComparison } from 'services/pull'
@@ -11,7 +11,7 @@ import { UploadTypeEnum } from 'shared/utils/commit'
 
 import FilesChangedTable, { getFilter } from './FilesChangedTable'
 
-vi.mock('../FileDiff', () => ({ default: () => 'FileDiff' }))
+vi.mock('../PullFileDiff', () => ({ default: () => 'PullFileDiff' }))
 
 const mockImpactedFiles = [
   {
@@ -93,8 +93,10 @@ const mockPull = ({
             'gh-eng-994-create-bundle-analysis-table-for-a-given-pull',
           state: 'complete',
           commitid: 'fc43199b07c52cf3d6c19b7cdb368f74387c38ab',
-          totals: {
-            percentCovered: 78.33,
+          coverageAnalytics: {
+            totals: {
+              percentCovered: 78.33,
+            },
           },
           uploads: {
             totalCount: 4,
@@ -252,7 +254,7 @@ describe('FilesChangedTable', () => {
       const { queryClient } = setup()
       render(<FilesChangedTable />, { wrapper: wrapper(queryClient) })
 
-      const path = await screen.findByRole('link', { name: 'flag1/mafs.js' })
+      const path = await screen.findByText('flag1/mafs.js')
       expect(path).toBeInTheDocument()
     })
 
@@ -408,7 +410,7 @@ describe('FilesChangedTable', () => {
       expect(expander).toBeInTheDocument()
       await user.click(expander)
 
-      const pullFileDiff = await screen.findByText('FileDiff')
+      const pullFileDiff = await screen.findByText('PullFileDiff')
       expect(pullFileDiff).toBeInTheDocument()
     })
 
@@ -420,7 +422,7 @@ describe('FilesChangedTable', () => {
         ]),
       })
 
-      const pullFileDiff = await screen.findByText('FileDiff')
+      const pullFileDiff = await screen.findByText('PullFileDiff')
       expect(pullFileDiff).toBeInTheDocument()
     })
   })

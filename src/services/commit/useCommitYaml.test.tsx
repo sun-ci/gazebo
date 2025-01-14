@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useCommitYaml } from './index'
@@ -93,7 +93,7 @@ describe('useCommitYaml', () => {
     ownerNotActivatedError = false,
   }: SetupArgs) {
     server.use(
-      graphql.query(`CommitYaml`, (info) => {
+      graphql.query(`CommitYaml`, () => {
         if (badSchema) {
           return HttpResponse.json({ data: mockCommitYamlBadSchema })
         } else if (notFoundError) {

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useAutoActivate } from './useAutoActivate'
@@ -45,12 +45,9 @@ describe('useAutoActivate', () => {
   describe('options is set', () => {
     function setup() {
       server.use(
-        http.patch(
-          `/internal/${provider}/${owner}/account-details/`,
-          (info) => {
-            return HttpResponse.json({})
-          }
-        )
+        http.patch(`/internal/${provider}/${owner}/account-details/`, () => {
+          return HttpResponse.json({})
+        })
       )
     }
 
@@ -113,12 +110,9 @@ describe('useAutoActivate', () => {
   describe('opts is not set', () => {
     function setup() {
       server.use(
-        http.patch(
-          `/internal/${provider}/${owner}/account-details/`,
-          (info) => {
-            return HttpResponse.json({})
-          }
-        )
+        http.patch(`/internal/${provider}/${owner}/account-details/`, () => {
+          return HttpResponse.json({})
+        })
       )
     }
 

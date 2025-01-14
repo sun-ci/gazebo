@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { usePull } from './usePull'
@@ -106,8 +106,10 @@ const pull = {
             'gh-eng-994-create-bundle-analysis-table-for-a-given-pull',
           state: 'complete',
           commitid: 'fc43199b07c52cf3d6c19b7cdb368f74387c38ab',
-          totals: {
-            percentCovered: 78.33,
+          coverageAnalytics: {
+            totals: {
+              percentCovered: 78.33,
+            },
           },
           uploads: {
             totalCount: 4,
@@ -136,9 +138,9 @@ const repo = 'gazebo'
 describe('usePull', () => {
   afterEach(() => queryClient.clear())
 
-  function setup(data: {}) {
+  function setup(data: object) {
     server.use(
-      graphql.query('Pull', (info) => {
+      graphql.query('Pull', () => {
         return HttpResponse.json({ data })
       })
     )
@@ -162,7 +164,6 @@ describe('usePull', () => {
         await waitFor(() =>
           expect(result.current.data).toEqual({
             defaultBranch: 'main',
-            hasAccess: true,
             pull: {
               behindBy: 82367894,
               behindByCommit: '1798hvs8ofhn',
@@ -181,7 +182,9 @@ describe('usePull', () => {
                 branchName:
                   'gh-eng-994-create-bundle-analysis-table-for-a-given-pull',
                 commitid: 'fc43199b07c52cf3d6c19b7cdb368f74387c38ab',
-                totals: { percentCovered: 78.33 },
+                coverageAnalytics: {
+                  totals: { percentCovered: 78.33 },
+                },
                 uploads: { totalCount: 4, edges: [] },
               },
               commits: {
@@ -259,7 +262,10 @@ describe('usePull', () => {
 
         await waitFor(() =>
           expect(result.current.error).toEqual(
-            expect.objectContaining({ status: 403 })
+            expect.objectContaining({
+              status: 403,
+              dev: 'usePull - 403 owner not activated',
+            })
           )
         )
       })
@@ -296,7 +302,10 @@ describe('usePull', () => {
 
         await waitFor(() =>
           expect(result.current.error).toEqual(
-            expect.objectContaining({ status: 404, data: {} })
+            expect.objectContaining({
+              status: 404,
+              dev: 'usePull - 404 not found',
+            })
           )
         )
       })
@@ -385,7 +394,10 @@ describe('usePull', () => {
 
         await waitFor(() =>
           expect(result.current.error).toEqual(
-            expect.objectContaining({ status: 404, data: {} })
+            expect.objectContaining({
+              status: 404,
+              dev: 'usePull - 404 failed to parse',
+            })
           )
         )
       })

@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 import { type Mock } from 'vitest'
 
@@ -10,6 +14,7 @@ import config from 'config'
 import { useImage } from 'services/image'
 import { useImpersonate } from 'services/impersonate'
 import { useInternalUser, useUser } from 'services/user'
+import { Plans } from 'shared/utils/billing'
 
 import BaseLayout from './BaseLayout'
 
@@ -73,7 +78,7 @@ const mockTrackingMetadata = {
   service: 'github',
   ownerid: 123,
   serviceId: '123',
-  plan: 'users-basic',
+  plan: Plans.USERS_BASIC,
   staff: false,
   hasYaml: false,
   bot: null,
@@ -155,15 +160,27 @@ const internalUserHasSyncedProviders = {
   termsAgreement: true,
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      suspense: false,
+const mockNavigatorData = {
+  owner: {
+    isCurrentUserPartOfOrg: true,
+    repository: {
+      __typename: 'Repository',
+      name: 'test-repo',
     },
   },
-})
+}
+
 const server = setupServer()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, suspense: false },
+  },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+})
 
 let testLocation: ReturnType<typeof useLocation>
 const wrapper: (
@@ -171,26 +188,34 @@ const wrapper: (
 ) => React.FC<React.PropsWithChildren> =
   (initialEntries = ['/bb/batman/batcave']) =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>
-        <Route path="/:provider/:owner/:repo">{children}</Route>
-        <Route
-          path="*"
-          render={({ location }) => {
-            testLocation = location
-            return null
-          }}
-        />
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={initialEntries}>
+          <Route path="/:provider/:owner/:repo">{children}</Route>
+          <Route
+            path="*"
+            render={({ location }) => {
+              testLocation = location
+              return null
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'warn' })
 })
 
+beforeEach(() => {
+  vi.resetModules()
+  vi.restoreAllMocks()
+})
+
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
   vi.clearAllMocks()
 })
@@ -221,29 +246,29 @@ describe('BaseLayout', () => {
     mockedUseImpersonate.mockReturnValue({ isImpersonating })
 
     server.use(
-      http.get('/internal/user', (info) => {
+      http.get('/internal/user', () => {
         return HttpResponse.json(internalUser)
       }),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: currentUser })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({ data: mockOwner })
       }),
-      http.get('/internal/:provider/:owner/account-details', (info) => {
+      http.get('/internal/:provider/:owner/account-details', () => {
         return HttpResponse.json({})
       }),
       // Self hosted only
-      graphql.query('HasAdmins', (info) => {
+      graphql.query('HasAdmins', () => {
+        return HttpResponse.json({ data: { config: null } })
+      }),
+      graphql.query('Seats', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('Seats', (info) => {
+      graphql.query('TermsOfService', () => {
         return HttpResponse.json({ data: {} })
       }),
-      graphql.query('TermsOfService', (info) => {
-        return HttpResponse.json({ data: {} })
-      }),
-      graphql.query('UseMyOrganizations', (info) => {
+      graphql.query('UseMyOrganizations', () => {
         return HttpResponse.json({
           data: {
             myOrganizationsData: {
@@ -257,10 +282,13 @@ describe('BaseLayout', () => {
           },
         })
       }),
-      graphql.mutation('updateDefaultOrganization', (info) => {
+      graphql.mutation('updateDefaultOrganization', () => {
         return HttpResponse.json({ data: {} })
       }),
-      http.get('/internal/users/current', (info) => {
+      graphql.query('NavigatorData', () => {
+        return HttpResponse.json({ data: mockNavigatorData })
+      }),
+      http.get('/internal/users/current', () => {
         return HttpResponse.json({})
       })
     )
@@ -534,6 +562,58 @@ describe('BaseLayout', () => {
 
         await waitFor(() => expect(testLocation.pathname).toBe('/sync'))
       })
+    })
+  })
+
+  describe('When main app has error', () => {
+    it('still renders the header and footer content independently', async () => {
+      const ErrorThrowingComponent = () => {
+        throw new Error('Test Error')
+      }
+
+      setup({ currentUser: userHasDefaultOrg })
+      render(
+        <BaseLayout>
+          <ErrorThrowingComponent />
+        </BaseLayout>,
+
+        { wrapper: wrapper() }
+      )
+
+      const globalTopBanners = await screen.findByText(/GlobalTopBanners/)
+      expect(globalTopBanners).toBeInTheDocument()
+      const header = await screen.findByText(/Header/)
+      expect(header).toBeInTheDocument()
+      const footer = await screen.findByText(/Footer/)
+      expect(footer).toBeInTheDocument()
+
+      const errorMainAppUI = await screen.findByText(
+        /Please try refreshing your browser/
+      )
+      expect(errorMainAppUI).toBeInTheDocument()
+    })
+  })
+
+  describe('When Header has a network call error', async () => {
+    it('renders nothing for the errored header', async () => {
+      vi.spyOn(
+        await import('layouts/Header'),
+        'default'
+      ).mockImplementationOnce(() => {
+        throw new Error('Simulated Header Error')
+      })
+
+      setup({ currentUser: userHasDefaultOrg })
+      render(<BaseLayout>hello</BaseLayout>, { wrapper: wrapper() })
+
+      const header = screen.queryByText(/Header/)
+      expect(header).not.toBeInTheDocument()
+
+      const mainAppContent = await screen.findByText('hello')
+      expect(mainAppContent).toBeInTheDocument()
+
+      const footerContent = await screen.findByText(/Footer/)
+      expect(footerContent).toBeInTheDocument()
     })
   })
 })

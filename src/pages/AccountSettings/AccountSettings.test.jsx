@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import config from 'config'
+
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import AccountSettings from './AccountSettings'
 
@@ -26,10 +28,10 @@ vi.mock('./tabs/OktaAccess', () => ({ default: () => 'OktaAccess' }))
 const mockPlanData = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Pro Team',
   monthlyUploadLimit: 250,
-  value: 'free-plan',
+  value: Plans.USERS_BASIC,
   trialStatus: 'NOT_STARTED',
   trialStartDate: '',
   trialEndDate: '',
@@ -63,7 +65,7 @@ const mockCurrentUser = (username) => ({
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -129,29 +131,29 @@ describe('AccountSettings', () => {
       username = 'codecov',
       isAdmin = false,
       hideAccessTab = true,
-      planValue = 'free-plan',
+      planValue = Plans.USERS_BASIC,
     } = {
       isSelfHosted: false,
       owner: 'codecov',
       username: 'codecov',
       isAdmin: false,
       hideAccessTab: true,
-      planValue: 'free-plan',
+      planValue: Plans.USERS_BASIC,
     }
   ) {
     config.IS_SELF_HOSTED = isSelfHosted
     config.HIDE_ACCESS_TAB = hideAccessTab
 
     server.use(
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: mockCurrentUser(username) })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({
           data: { owner: { username: owner, isAdmin } },
         })
       }),
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -159,6 +161,14 @@ describe('AccountSettings', () => {
               plan: {
                 ...mockPlanData,
                 value: planValue,
+                isEnterprisePlan: planValue === Plans.USERS_ENTERPRISEM,
+                isFreePlan: planValue === Plans.USERS_BASIC,
+                isProPlan: false,
+                isTeamPlan:
+                  planValue === Plans.USERS_TEAMM ||
+                  planValue === Plans.USERS_TEAMY,
+                isTrialPlan: false,
+                isSentryPlan: false,
               },
             },
           },
@@ -357,7 +367,7 @@ describe('AccountSettings', () => {
   describe('on okta access route', () => {
     it('renders okta access tab for enterprise users', async () => {
       setup({
-        planValue: 'users-enterprisem',
+        planValue: Plans.USERS_ENTERPRISEM,
         isSelfHosted: false,
       })
 

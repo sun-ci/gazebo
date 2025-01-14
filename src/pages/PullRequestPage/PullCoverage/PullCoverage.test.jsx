@@ -1,8 +1,12 @@
-import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
+import { render, screen } from '@testing-library/react'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -56,8 +60,10 @@ const mockPullData = (resultType) => {
             },
             head: {
               commitid: '123',
-              bundleAnalysisReport: {
-                __typename: 'MissingHeadReport',
+              bundleAnalysis: {
+                bundleAnalysisReport: {
+                  __typename: 'MissingHeadReport',
+                },
               },
             },
             compareWithBase: {
@@ -81,10 +87,15 @@ const mockPullData = (resultType) => {
         bundleAnalysisEnabled: true,
         pull: {
           pullId: 1,
+          commits: {
+            totalCount: 11,
+          },
           head: {
             commitid: '123',
-            bundleAnalysisReport: {
-              __typename: 'MissingHeadReport',
+            bundleAnalysis: {
+              bundleAnalysisReport: {
+                __typename: 'MissingHeadReport',
+              },
             },
           },
           compareWithBase: {
@@ -115,8 +126,10 @@ const mockPullDataTeam = {
         pullId: 1,
         head: {
           commitid: '123',
-          bundleAnalysisReport: {
-            __typename: 'MissingHeadReport',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'MissingHeadReport',
+            },
           },
         },
         compareWithBase: {
@@ -160,28 +173,33 @@ const mockRepoRateLimitStatus = ({ isGithubRateLimited = false }) => ({
   },
 })
 
+const server = setupServer()
 const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, suspense: true } },
+})
+const queryClientV5 = new QueryClientV5({
   defaultOptions: { queries: { retry: false } },
 })
-const server = setupServer()
 
 const wrapper =
   (initialEntries = '/gh/codecov/test-repo/pull/1') =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntries]}>
-        <Route
-          path={[
-            '/:provider/:owner/:repo/pull/:pullId/blob/:path+',
-            '/:provider/:owner/:repo/pull/:pullId/tree/:path+',
-            '/:provider/:owner/:repo/pull/:pullId/tree/',
-            '/:provider/:owner/:repo/pull/:pullId',
-          ]}
-        >
-          {children}
-        </Route>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialEntries]}>
+          <Route
+            path={[
+              '/:provider/:owner/:repo/pull/:pullId/blob/:path+',
+              '/:provider/:owner/:repo/pull/:pullId/tree/:path+',
+              '/:provider/:owner/:repo/pull/:pullId/tree/',
+              '/:provider/:owner/:repo/pull/:pullId',
+            ]}
+          >
+            <Suspense fallback={<div>Loading</div>}>{children}</Suspense>
+          </Route>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 beforeAll(() => {
@@ -189,6 +207,7 @@ beforeAll(() => {
 })
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 afterAll(() => {
@@ -218,7 +237,7 @@ describe('PullRequestPageContent', () => {
         }
         return HttpResponse.json({ data: mockPullData(resultType) })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview({
             bundleAnalysisEnabled,
@@ -226,14 +245,14 @@ describe('PullRequestPageContent', () => {
           }),
         })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({
           data: {
             owner: { plan: { tierName: tierValue } },
           },
         })
       }),
-      graphql.query('GetRepoRateLimitStatus', (info) => {
+      graphql.query('GetRepoRateLimitStatus', () => {
         return HttpResponse.json({
           data: mockRepoRateLimitStatus({ isGithubRateLimited }),
         })
@@ -399,48 +418,6 @@ describe('PullRequestPageContent', () => {
 
       const filesChangedTab = await screen.findByText('FilesChangedTab')
       expect(filesChangedTab).toBeInTheDocument()
-    })
-  })
-
-  describe('user lands on page', () => {
-    describe('coverage and bundle analysis is enabled', () => {
-      it('sends dropdown metric to sentry', async () => {
-        setup({
-          coverageEnabled: true,
-          bundleAnalysisEnabled: true,
-        })
-        render(<PullRequestPageContent />, {
-          wrapper: wrapper(),
-        })
-
-        await waitFor(() =>
-          expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-            'pull_request_page.coverage_dropdown.opened',
-            1,
-            undefined
-          )
-        )
-      })
-    })
-
-    describe('bundle analysis is disabled', () => {
-      it('sends coverage page metric to sentry', async () => {
-        setup({
-          coverageEnabled: true,
-          bundleAnalysisEnabled: false,
-        })
-        render(<PullRequestPageContent />, {
-          wrapper: wrapper(),
-        })
-
-        await waitFor(() =>
-          expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-            'pull_request_page.coverage_page.visited_page',
-            1,
-            undefined
-          )
-        )
-      })
     })
   })
 

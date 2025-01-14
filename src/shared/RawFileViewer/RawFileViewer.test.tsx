@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import RawFileViewer from './RawFileViewer'
 
 const mocks = vi.hoisted(() => ({
-  useFlags: vi.fn(),
   useScrollToLine: vi.fn(),
   captureMessage: vi.fn(),
 }))
@@ -18,14 +17,6 @@ vi.mock('@sentry/react', async () => {
     ...originalModule,
     withProfiler: (component: any) => component,
     captureMessage: mocks.captureMessage,
-  }
-})
-
-vi.mock('shared/featureFlags', async () => {
-  const originalModule = await vi.importActual('shared/featureFlags')
-  return {
-    ...originalModule,
-    useFlags: mocks.useFlags,
   }
 })
 
@@ -62,7 +53,7 @@ window.scrollTo = scrollToMock
 window.scrollX = 100
 
 class ResizeObserverMock {
-  callback = (x: any) => null
+  callback = (_x: any) => null
 
   constructor(callback: any) {
     this.callback = callback
@@ -127,15 +118,13 @@ afterAll(() => {
 
 interface SetupArgs {
   content?: string | null
-  owner?: {} | null
-  coverage?: {} | null
+  owner?: object | null
+  coverage?: object | null
   isCriticalFile?: boolean
 }
 
 describe('RawFileViewer', () => {
   function setup({ content, owner, coverage, isCriticalFile }: SetupArgs) {
-    mocks.useFlags.mockReturnValue({ virtualFileRenderer: true })
-
     mocks.useScrollToLine.mockImplementation(() => ({
       lineRef: () => {},
       handleClick: vi.fn(),
@@ -143,10 +132,10 @@ describe('RawFileViewer', () => {
     }))
 
     server.use(
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({ data: { owner } })
       }),
-      graphql.query('CoverageForFile', (info) => {
+      graphql.query('CoverageForFile', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -154,15 +143,17 @@ describe('RawFileViewer', () => {
                 __typename: 'Repository',
                 commit: {
                   commitid: '1',
-                  flagNames: ['flag1', 'flag2'],
-                  components: [],
-                  coverageFile: {
-                    hashedPath: 'hashed-path',
-                    isCriticalFile,
-                    content,
-                    coverage,
-                    totals: {
-                      percentCovered: 100,
+                  coverageAnalytics: {
+                    flagNames: ['flag1', 'flag2'],
+                    components: [],
+                    coverageFile: {
+                      hashedPath: 'hashed-path',
+                      isCriticalFile,
+                      content,
+                      coverage,
+                      totals: {
+                        percentCovered: 100,
+                      },
                     },
                   },
                 },
@@ -431,6 +422,16 @@ describe('RawFileViewer', () => {
         /There was a problem getting the source code from your provider./
       )
       expect(errorMessage).toBeInTheDocument()
+    })
+
+    it('renders a login link', async () => {
+      render(
+        <RawFileViewer title="The FileViewer" commit="cool-commit-sha" />,
+        { wrapper: wrapper() }
+      )
+      const link = await screen.findByText(/logging in/)
+      expect(link).toBeVisible()
+      expect(link).toHaveAttribute('href', '/login')
     })
   })
 

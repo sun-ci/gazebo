@@ -1,3 +1,4 @@
+import { useInfiniteQuery as useInfiniteQueryV5 } from '@tanstack/react-queryV5'
 import {
   flexRender,
   getCoreRowModel,
@@ -13,7 +14,10 @@ import { useParams } from 'react-router-dom'
 
 import config from 'config'
 
-import { OrderingDirection, useRepos } from 'services/repos'
+import {
+  OrderingDirection,
+  ReposQueryOpts,
+} from 'services/repos/ReposQueryOpts'
 import { TierNames, useTier } from 'services/tier'
 import { useOwner, useUser } from 'services/user'
 import { ActiveContext } from 'shared/context'
@@ -134,37 +138,57 @@ const ReposTable = ({
     hasNextPage,
     isLoading: isReposLoading,
     isFetchingNextPage,
-  } = useRepos({
-    provider,
-    owner,
-    activated,
-    sortItem: getOrderingDirection(sorting),
-    term: searchValue,
-    repoNames: filterValues,
-    isPublic: shouldDisplayPublicReposOnly,
-  })
+  } = useInfiniteQueryV5(
+    ReposQueryOpts({
+      provider,
+      owner,
+      activated,
+      sortItem: getOrderingDirection(sorting),
+      term: searchValue,
+      repoNames: filterValues,
+      isPublic: shouldDisplayPublicReposOnly,
+    })
+  )
 
   // fetch demo repo(s)
-  const { data: demoReposData } = useRepos({
-    provider: DEMO_REPO.provider,
-    owner: DEMO_REPO.owner,
-    activated,
-    repoNames: [DEMO_REPO.repo],
-  })
+  const { data: demoReposData } = useInfiniteQueryV5(
+    ReposQueryOpts({
+      provider: DEMO_REPO.provider,
+      owner: DEMO_REPO.owner,
+      activated,
+      repoNames: [DEMO_REPO.repo],
+    })
+  )
 
   const isMyOwnerPage = currentUser?.user?.username === owner
-  const includeDemo = mayIncludeDemo && !config.IS_SELF_HOSTED && isMyOwnerPage
 
   const tableData = useMemo(() => {
     const repos =
       reposData?.pages.flatMap((page) => page?.repos).filter(isNotNull) ?? []
+
+    const configuredRepos = repos.reduce(
+      (acc, repo) => (repo.coverageEnabled ? acc + 1 : acc),
+      0
+    )
+
+    const includeDemo =
+      mayIncludeDemo &&
+      !config.IS_SELF_HOSTED &&
+      isMyOwnerPage &&
+      configuredRepos < 2
 
     const demoRepos = includeDemo
       ? formatDemoRepos(demoReposData, searchValue)
       : []
 
     return [...demoRepos, ...repos]
-  }, [reposData?.pages, demoReposData, includeDemo, searchValue])
+  }, [
+    reposData?.pages,
+    demoReposData,
+    searchValue,
+    isMyOwnerPage,
+    mayIncludeDemo,
+  ])
 
   useEffect(() => {
     if (inView && hasNextPage) {
@@ -185,6 +209,8 @@ const ReposTable = ({
     },
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    enableSortingRemoval: false,
+    manualSorting: true,
   })
 
   if (!isReposLoading && isEmpty(tableData)) {

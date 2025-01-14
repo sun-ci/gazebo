@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import RepoState from './RepoState'
@@ -49,7 +49,7 @@ describe('RepoState', () => {
     const addNotification = vi.fn()
 
     server.use(
-      graphql.query('GetRepoSettings', (info) => {
+      graphql.query('GetRepoSettings', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -71,7 +71,7 @@ describe('RepoState', () => {
           },
         })
       }),
-      http.patch('/internal/github/codecov/repos/codecov-client/', (info) => {
+      http.patch('/internal/github/codecov/repos/codecov-client/', () => {
         mutate()
 
         if (failMutation) {

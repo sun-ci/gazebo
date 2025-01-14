@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import Cookie from 'js-cookie'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useEraseAccount } from './useEraseAccount'
@@ -42,7 +42,7 @@ afterAll(() => {
 describe('useEraseAccount', () => {
   function setup() {
     server.use(
-      http.delete(`/internal/${provider}/${owner}/account-details/`, (info) => {
+      http.delete(`/internal/${provider}/${owner}/account-details/`, () => {
         return HttpResponse.json({})
       })
     )

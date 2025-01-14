@@ -43,7 +43,7 @@ const subscriptionDetail = {
   cancelAtPeriodEnd: false,
 } as z.infer<typeof SubscriptionDetailSchema>
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
   <ThemeContextProvider>{children}</ThemeContextProvider>
 )
 
@@ -51,7 +51,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 vi.mock('@stripe/react-stripe-js', () => {
   function makeFakeComponent(name: string) {
     // mocking onReady to be called after a bit of time
-    return function Component({ onReady }: { onReady?: any }) {
+    return function Component({ _onReady }: { _onReady?: any }) {
       return name
     }
   }

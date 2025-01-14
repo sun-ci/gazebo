@@ -9,11 +9,7 @@ import {
   useAvailablePlans,
   usePlanData,
 } from 'services/account'
-import {
-  canApplySentryUpgrade,
-  getNextBillingDate,
-  isTeamPlan,
-} from 'shared/utils/billing'
+import { canApplySentryUpgrade, getNextBillingDate } from 'shared/utils/billing'
 import {
   getDefaultValuesUpgradeForm,
   getSchema,
@@ -21,7 +17,6 @@ import {
   MIN_SENTRY_SEATS,
 } from 'shared/utils/upgradeForm'
 
-import { NewPlanType } from './constants'
 import Controller from './Controllers/Controller'
 import { useUpgradeControls } from './hooks'
 import PlanTypeOptions from './PlanTypeOptions'
@@ -34,28 +29,27 @@ type URLParams = {
 }
 
 type UpgradeFormProps = {
-  selectedPlan: NonNullable<IndividualPlan>
-  setSelectedPlan: (plan: IndividualPlan) => void
+  selectedPlan: IndividualPlan
+  setSelectedPlan: (plan?: IndividualPlan) => void
 }
 
 export type UpgradeFormFields = {
-  newPlan: NewPlanType
+  newPlan?: IndividualPlan
   seats: number
 }
 
 function UpgradeForm({ selectedPlan, setSelectedPlan }: UpgradeFormProps) {
   const { provider, owner } = useParams<URLParams>()
   const { data: accountDetails } = useAccountDetails({ provider, owner })
-  const currentPlan = accountDetails?.plan
   const { data: plans } = useAvailablePlans({ provider, owner })
   const { data: planData } = usePlanData({ owner, provider })
   const { upgradePlan } = useUpgradeControls()
   const isSentryUpgrade = canApplySentryUpgrade({
-    plan: currentPlan?.value,
+    isEnterprisePlan: planData?.plan?.isEnterprisePlan,
     plans,
   })
   const minSeats =
-    isSentryUpgrade && !isTeamPlan(selectedPlan?.value)
+    isSentryUpgrade && !selectedPlan?.isTeamPlan
       ? MIN_SENTRY_SEATS
       : MIN_NB_SEATS_PRO
 
@@ -67,12 +61,13 @@ function UpgradeForm({ selectedPlan, setSelectedPlan }: UpgradeFormProps) {
     formState: { isValid, errors },
     setValue: setFormValue,
     trigger,
-  } = useForm({
+  } = useForm<UpgradeFormFields>({
     defaultValues: getDefaultValuesUpgradeForm({
       accountDetails,
       plans,
       trialStatus,
       selectedPlan,
+      plan: planData?.plan,
     }),
     resolver: zodResolver(
       getSchema({
@@ -80,6 +75,7 @@ function UpgradeForm({ selectedPlan, setSelectedPlan }: UpgradeFormProps) {
         minSeats,
         trialStatus,
         selectedPlan,
+        plan: planData?.plan,
       })
     ),
     mode: 'onChange',
@@ -108,7 +104,6 @@ function UpgradeForm({ selectedPlan, setSelectedPlan }: UpgradeFormProps) {
         newPlan={newPlan}
       />
       <Controller
-        selectedPlan={selectedPlan.value as NewPlanType}
         setSelectedPlan={setSelectedPlan}
         newPlan={newPlan}
         seats={seats}
@@ -117,9 +112,8 @@ function UpgradeForm({ selectedPlan, setSelectedPlan }: UpgradeFormProps) {
         errors={errors}
       />
       <UpdateBlurb
-        currentPlan={currentPlan}
-        selectedPlan={selectedPlan}
-        newPlanName={newPlan}
+        currentPlan={planData?.plan}
+        newPlan={newPlan}
         seats={Number(seats)}
         nextBillingDate={getNextBillingDate(accountDetails)!}
       />

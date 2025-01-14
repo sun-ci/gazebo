@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type MockInstance } from 'vitest'
 
@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
   },
 })
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
   <MemoryRouter initialEntries={['/gh/codecov/gazebo/flags']}>
     <Route path="/:provider/:owner/:repo/flags">
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -43,16 +43,18 @@ const dataReturned = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsYaml: [
-        {
-          name: 'foo',
-          id: '1',
-        },
-        {
-          name: 'bar',
-          id: '2',
-        },
-      ],
+      coverageAnalytics: {
+        componentsYaml: [
+          {
+            name: 'foo',
+            id: '1',
+          },
+          {
+            name: 'bar',
+            id: '2',
+          },
+        ],
+      },
     },
   },
 }
@@ -64,7 +66,7 @@ describe('RepoComponentsYamlSelector', () => {
     isNotFoundError = false,
   } = {}) {
     server.use(
-      graphql.query('RepoComponentsSelector', (info) => {
+      graphql.query('RepoComponentsSelector', () => {
         if (isSchemaInvalid) {
           return HttpResponse.json({})
         }
@@ -116,7 +118,8 @@ describe('RepoComponentsYamlSelector', () => {
 
         await waitFor(() =>
           expect(result.current.data).toEqual({
-            components: dataReturned.owner.repository.componentsYaml,
+            components:
+              dataReturned.owner.repository.coverageAnalytics.componentsYaml,
           })
         )
       })

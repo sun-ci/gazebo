@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { format, sub, subDays, subMonths } from 'date-fns'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import React, { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TIME_OPTION_VALUES } from 'pages/RepoPage/shared/constants'
-import { useLocationParams } from 'services/navigation'
 
 import useRepoComponentsTable from './useRepoComponentsTable'
 
@@ -42,11 +41,15 @@ afterAll(() => {
   server.close()
 })
 
+const mocks = vi.hoisted(() => ({
+  useLocationParams: vi.fn(),
+}))
+
 vi.mock('services/navigation', async () => {
   const actual = await vi.importActual('services/navigation')
   return {
     ...actual,
-    useLocationParams: vi.fn(),
+    useLocationParams: mocks.useLocationParams,
   }
 })
 
@@ -82,24 +85,26 @@ const mockedComponentMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      components: [
-        {
-          name: 'component1',
-          componentId: 'component1Id',
-          percentCovered: 93.26,
-          percentChange: 1.65,
-          lastUploaded: null,
-          measurements: [],
-        },
-        {
-          name: 'component2',
-          componentId: 'component2Id',
-          percentCovered: 91.74,
-          percentChange: 2.65,
-          lastUploaded: null,
-          measurements: [],
-        },
-      ],
+      coverageAnalytics: {
+        components: [
+          {
+            name: 'component1',
+            componentId: 'component1Id',
+            percentCovered: 93.26,
+            percentChange: 1.65,
+            lastUploaded: null,
+            measurements: [],
+          },
+          {
+            name: 'component2',
+            componentId: 'component2Id',
+            percentCovered: 91.74,
+            percentChange: 2.65,
+            lastUploaded: null,
+            measurements: [],
+          },
+        ],
+      },
     },
   },
 }
@@ -152,12 +157,11 @@ describe('useRepoComponentsTable', () => {
     noData?: boolean
     useParamsValue?: useParamsValueType
   }) {
-    const mockedUseLocationParams = useLocationParams as jest.Mock
-    mockedUseLocationParams.mockReturnValue({
+    mocks.useLocationParams.mockReturnValue({
       params: useParamsValue,
     })
 
-    const requestFilters = jest.fn()
+    const requestFilters = vi.fn()
 
     server.use(
       graphql.query('ComponentMeasurements', (info) => {
@@ -167,7 +171,7 @@ describe('useRepoComponentsTable', () => {
         }
         return HttpResponse.json({ data: mockedComponentMeasurements })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: repoData({}) })
       })
     )

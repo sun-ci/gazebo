@@ -1,17 +1,51 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
-
-import { useScrollToLine } from 'ui/CodeRenderer/hooks/useScrollToLine'
 
 import CommitDetailFileViewer from './CommitDetailFileViewer'
 
-vi.mock('ui/CodeRenderer/hooks/useScrollToLine')
 vi.mock('../ComponentsSelector', () => ({
   default: () => 'ComponentsSelector',
 }))
+
+window.requestAnimationFrame = (cb) => {
+  cb(1)
+  return 1
+}
+window.cancelAnimationFrame = () => {}
+
+const scrollToMock = vi.fn()
+window.scrollTo = scrollToMock
+window.scrollY = 100
+
+class ResizeObserverMock {
+  callback = (_x) => null
+
+  constructor(callback) {
+    this.callback = callback
+  }
+
+  observe() {
+    this.callback([
+      {
+        contentRect: { width: 100 },
+        target: {
+          getAttribute: () => ({ scrollWidth: 100 }),
+          getBoundingClientRect: () => ({ top: 100 }),
+        },
+      },
+    ])
+  }
+  unobserve() {
+    // do nothing
+  }
+  disconnect() {
+    // do nothing
+  }
+}
+global.window.ResizeObserver = ResizeObserverMock
 
 const mockOwner = {
   username: 'cool-user',
@@ -21,23 +55,25 @@ const mockCoverage = {
   __typename: 'Repository',
   commit: {
     commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
-    flagNames: ['a', 'b'],
-    components: [],
-    coverageFile: {
-      hashedPath: 'hashed-path',
-      isCriticalFile: false,
-      content:
-        'import pytest\nfrom path1 import index\n\ndef test_uncovered_if():\n    assert index.uncovered_if() == False\n\ndef test_fully_covered():\n    assert index.fully_covered() == True\n\n\n\n\n',
-      coverage: [
-        { line: 1, coverage: 'H' },
-        { line: 2, coverage: 'H' },
-        { line: 4, coverage: 'H' },
-        { line: 5, coverage: 'H' },
-        { line: 7, coverage: 'H' },
-        { line: 8, coverage: 'H' },
-      ],
-      totals: {
-        percentCovered: 100,
+    coverageAnalytics: {
+      flagNames: ['a', 'b'],
+      components: [],
+      coverageFile: {
+        hashedPath: 'hashed-path',
+        isCriticalFile: false,
+        content:
+          'import pytest\nfrom path1 import index\n\ndef test_uncovered_if():\n    assert index.uncovered_if() == False\n\ndef test_fully_covered():\n    assert index.fully_covered() == True\n\n\n\n\n',
+        coverage: [
+          { line: 1, coverage: 'H' },
+          { line: 2, coverage: 'H' },
+          { line: 4, coverage: 'H' },
+          { line: 5, coverage: 'H' },
+          { line: 7, coverage: 'H' },
+          { line: 8, coverage: 'H' },
+        ],
+        totals: {
+          percentCovered: 100,
+        },
       },
     },
   },
@@ -78,28 +114,22 @@ afterAll(() => {
 
 describe('CommitDetailFileViewer', () => {
   function setup() {
-    useScrollToLine.mockImplementation(() => ({
-      lineRef: () => {},
-      handleClick: vi.fn(),
-      targeted: false,
-    }))
-
     server.use(
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({ data: { owner: mockOwner } })
       }),
-      graphql.query('CoverageForFile', (info) => {
+      graphql.query('CoverageForFile', () => {
         return HttpResponse.json({
           data: { owner: { repository: mockCoverage } },
         })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: { owner: null } })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: { owner: null } })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: { owner: null } })
       })
     )

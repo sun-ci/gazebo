@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useRepoCommitContents } from './useRepoCommitContents'
@@ -144,7 +144,7 @@ describe('useRepoCommitContents', () => {
     isUnsuccessfulParseError = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('CommitPathContents', (info) => {
+      graphql.query('CommitPathContents', () => {
         if (isMissingCoverage) {
           return HttpResponse.json({ data: mockDataMissingCoverage })
         } else if (isUnknownPath) {
@@ -287,7 +287,7 @@ describe('useRepoCommitContents', () => {
     })
 
     describe('owner not activated', () => {
-      let oldConsoleError = console.error
+      const oldConsoleError = console.error
 
       beforeEach(() => {
         console.error = () => null
@@ -326,7 +326,7 @@ describe('useRepoCommitContents', () => {
     })
 
     describe('failed to parse schema', () => {
-      let oldConsoleError = console.error
+      const oldConsoleError = console.error
       beforeEach(() => {
         console.error = () => null
       })
@@ -364,7 +364,7 @@ describe('useRepoCommitContents', () => {
     })
 
     describe('not found error', () => {
-      let oldConsoleError = console.error
+      const oldConsoleError = console.error
 
       beforeEach(() => {
         console.error = () => null

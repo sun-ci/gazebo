@@ -52,7 +52,7 @@ function CoverageOverviewTab() {
     branch: branch,
   })
 
-  const fileCount = data?.branch?.head?.totals?.fileCount
+  const fileCount = data?.branch?.head?.coverageAnalytics?.totals?.fileCount
   const withinFileCount =
     typeof fileCount === 'number' && fileCount <= MAX_FILE_COUNT
 
@@ -90,11 +90,11 @@ function CoverageOverviewTab() {
                   <div
                     className={cn('inline-table', {
                       'col-span-9': displaySunburst,
-                      'col-span-12 h-[21rem]': !displaySunburst,
+                      'col-span-12': !displaySunburst,
                     })}
                   >
                     <SilentNetworkErrorWrapper>
-                      <CoverageChart extendedChart={!displaySunburst} />
+                      <CoverageChart />
                     </SilentNetworkErrorWrapper>
                   </div>
                   {displaySunburst ? (

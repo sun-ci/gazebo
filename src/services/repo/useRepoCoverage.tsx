@@ -12,11 +12,15 @@ import {
 
 const CommitSchema = z.object({
   yamlState: z.literal('DEFAULT').nullable(),
-  totals: z
+  coverageAnalytics: z
     .object({
-      percentCovered: z.number().nullable(),
-      lineCount: z.number().nullable(),
-      hitsCount: z.number().nullable(),
+      totals: z
+        .object({
+          percentCovered: z.number().nullable(),
+          lineCount: z.number().nullable(),
+          hitsCount: z.number().nullable(),
+        })
+        .nullable(),
     })
     .nullable(),
 })
@@ -55,10 +59,12 @@ const query = `
             name
             head {
               yamlState
-              totals {
-                percentCovered
-                lineCount
-                hitsCount
+              coverageAnalytics {
+                totals {
+                  percentCovered
+                  lineCount
+                  hitsCount
+                }
               }
             }
           }
@@ -131,7 +137,7 @@ export function useRepoCoverage({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>

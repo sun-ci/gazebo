@@ -6,8 +6,8 @@ import {
   waitFor,
   waitForElementToBeRemoved,
 } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -123,7 +123,6 @@ interface SetupArgs {
   bundleAnalysisEnabled?: boolean
   tierName?: TTierNames
   isCurrentUserPartOfOrg?: boolean
-  componentTab?: boolean
   testAnalyticsEnabled?: boolean
 }
 
@@ -135,11 +134,10 @@ describe('RepoPageTabs', () => {
     isRepoPrivate,
     tierName = TierNames.PRO,
     isCurrentUserPartOfOrg = true,
-    componentTab = true,
     testAnalyticsEnabled = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview({
             language,
@@ -151,10 +149,10 @@ describe('RepoPageTabs', () => {
         })
       }),
 
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: { owner: { plan: { tierName } } } })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: mockRepo({ isCurrentUserPartOfOrg }) })
       })
     )
@@ -405,7 +403,7 @@ describe('RepoPageTabs', () => {
       expect(tab).toHaveAttribute('href', '/gh/codecov/test-repo/tests')
     })
 
-    it('renders beta badge', async () => {
+    it('renders new badge', async () => {
       setup({
         coverageEnabled: false,
       })
@@ -413,8 +411,8 @@ describe('RepoPageTabs', () => {
         wrapper: wrapper('/gh/codecov/test-repo/tests/new'),
       })
 
-      const betaBadge = await screen.findByText('beta')
-      expect(betaBadge).toBeInTheDocument()
+      const newBadge = await screen.findByText('New')
+      expect(newBadge).toBeInTheDocument()
     })
   })
 
@@ -446,7 +444,7 @@ describe('useRepoTabs', () => {
     isCurrentUserPartOfOrg = true,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview({
             language,
@@ -457,10 +455,10 @@ describe('useRepoTabs', () => {
           }),
         })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: { owner: { plan: { tierName } } } })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: mockRepo({ isCurrentUserPartOfOrg }) })
       })
     )

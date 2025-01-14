@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import React from 'react'
 import { MockInstance } from 'vitest'
 
@@ -83,7 +83,7 @@ describe('useRepo', () => {
     isOwnerNotActivatedError?: boolean
   }) {
     server.use(
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         if (failedToParseError) {
           return HttpResponse.json({ data: {} })
         } else if (isOwnerNotActivatedError) {

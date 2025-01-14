@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TrialStatuses } from 'services/account'
-import { Plans } from 'shared/utils/billing'
+import { BillingRate, Plans } from 'shared/utils/billing'
 
 import ProPlanDetails from './ProPlanDetails'
 
@@ -17,8 +17,8 @@ vi.mock('shared/plan/ScheduledPlanDetails', () => ({
 
 const proPlanYear = {
   marketingName: 'Pro',
-  value: 'users-pr-inappy',
-  billingRate: 'annually',
+  value: Plans.USERS_PR_INAPPY,
+  billingRate: BillingRate.ANNUALLY,
   baseUnitPrice: 10,
   benefits: [
     'Configurable # of users',
@@ -28,12 +28,14 @@ const proPlanYear = {
   ],
   quantity: 10,
   monthlyUploadLimit: null,
+  isTeamPlan: false,
+  isSentryPlan: false,
 }
 
 const sentryPlanMonth = {
   marketingName: 'Sentry Pro',
-  value: 'users-sentrym',
-  billingRate: 'monthly',
+  value: Plans.USERS_SENTRYM,
+  billingRate: BillingRate.MONTHLY,
   baseUnitPrice: 12,
   benefits: [
     'Includes 5 seats',
@@ -43,12 +45,14 @@ const sentryPlanMonth = {
   ],
   trialDays: 14,
   monthlyUploadLimit: null,
+  isTeamPlan: false,
+  isSentryPlan: true,
 }
 
 const sentryPlanYear = {
   marketingName: 'Sentry Pro',
-  value: 'users-sentryy',
-  billingRate: 'annually',
+  value: Plans.USERS_SENTRYY,
+  billingRate: BillingRate.ANNUALLY,
   baseUnitPrice: 10,
   benefits: [
     'Includes 5 seats',
@@ -58,12 +62,14 @@ const sentryPlanYear = {
   ],
   monthlyUploadLimit: null,
   trialDays: 14,
+  isTeamPlan: false,
+  isSentryPlan: true,
 }
 
 const allPlansWithoutSentry = [
   {
     marketingName: 'Basic',
-    value: 'users-free',
+    value: Plans.USERS_FREE,
     billingRate: null,
     baseUnitPrice: 0,
     benefits: [
@@ -72,11 +78,13 @@ const allPlansWithoutSentry = [
       'Unlimited private repositories',
     ],
     monthlyUploadLimit: 250,
+    isTeamPlan: false,
+    isSentryPlan: false,
   },
   {
     marketingName: 'Pro',
-    value: 'users-pr-inappm',
-    billingRate: 'monthly',
+    value: Plans.USERS_PR_INAPPM,
+    billingRate: BillingRate.MONTHLY,
     baseUnitPrice: 12,
     benefits: [
       'Configurable # of users',
@@ -85,12 +93,14 @@ const allPlansWithoutSentry = [
       'Priority Support',
     ],
     monthlyUploadLimit: null,
+    isTeamPlan: false,
+    isSentryPlan: false,
   },
   proPlanYear,
   {
     marketingName: 'Pro',
-    value: 'users-enterprisem',
-    billingRate: 'monthly',
+    value: Plans.USERS_ENTERPRISEM,
+    billingRate: BillingRate.MONTHLY,
     baseUnitPrice: 12,
     benefits: [
       'Configurable # of users',
@@ -99,11 +109,13 @@ const allPlansWithoutSentry = [
       'Priority Support',
     ],
     monthlyUploadLimit: null,
+    isTeamPlan: false,
+    isSentryPlan: false,
   },
   {
     marketingName: 'Pro',
-    value: 'users-enterprisey',
-    billingRate: 'annually',
+    value: Plans.USERS_ENTERPRISEY,
+    billingRate: BillingRate.ANNUALLY,
     baseUnitPrice: 10,
     benefits: [
       'Configurable # of users',
@@ -112,16 +124,18 @@ const allPlansWithoutSentry = [
       'Priority Support',
     ],
     monthlyUploadLimit: null,
+    isTeamPlan: false,
+    isSentryPlan: false,
   },
 ]
 
 const mockPlanData = {
   baseUnitPrice: 10,
   benefits: [],
-  billingRate: 'monthly',
+  billingRate: BillingRate.MONTHLY,
   marketingName: 'Users Basic',
   monthlyUploadLimit: 250,
-  value: 'users-basic',
+  value: Plans.USERS_BASIC,
   trialStatus: TrialStatuses.NOT_STARTED,
   trialStartDate: '',
   trialEndDate: '',
@@ -129,6 +143,10 @@ const mockPlanData = {
   pretrialUsersCount: 0,
   planUserCount: 1,
   hasSeatsLeft: true,
+  isEnterprisePlan: false,
+  isProPlan: false,
+  isSentryPlan: false,
+  isTrialPlan: false,
 }
 
 const server = setupServer()
@@ -178,13 +196,15 @@ describe('ProPlanDetails', () => {
     }
   ) {
     server.use(
-      graphql.query('GetPlanData', (info) => {
+      graphql.query('GetPlanData', () => {
         return HttpResponse.json({
           data: {
             owner: {
               hasPrivateRepos: true,
               plan: {
                 ...mockPlanData,
+                isFreePlan: !isProPlan && !isSentryPlan,
+                isTeamPlan: false,
                 trialStatus: isOngoingTrial
                   ? TrialStatuses.ONGOING
                   : TrialStatuses.CANNOT_TRIAL,
@@ -198,7 +218,7 @@ describe('ProPlanDetails', () => {
           },
         })
       }),
-      graphql.query('GetAvailablePlans', (info) => {
+      graphql.query('GetAvailablePlans', () => {
         if (isSentryPlan) {
           return HttpResponse.json({
             data: {
@@ -217,7 +237,7 @@ describe('ProPlanDetails', () => {
           })
         }
       }),
-      http.get('/internal/gh/codecov/account-details', (info) => {
+      http.get('/internal/gh/codecov/account-details', () => {
         if (isSentryPlan) {
           return HttpResponse.json({
             plan: sentryPlanYear,

@@ -4,8 +4,8 @@ import {
   screen,
   waitForElementToBeRemoved,
 } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -58,7 +58,7 @@ describe('UserCount', () => {
     }
   ) {
     server.use(
-      http.get('/internal/gh/codecov/account-details', (info) => {
+      http.get('/internal/gh/codecov/account-details', () => {
         return HttpResponse.json({
           activatedUserCount,
           activatedStudentCount,

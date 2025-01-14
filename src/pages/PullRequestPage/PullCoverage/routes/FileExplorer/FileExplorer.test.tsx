@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -182,9 +182,11 @@ const mockBackfillData = {
   owner: {
     repository: {
       __typename: 'Repository',
-      flagsMeasurementsActive: true,
-      flagsMeasurementsBackfilled: true,
-      flagsCount: 4,
+      coverageAnalytics: {
+        flagsMeasurementsActive: true,
+        flagsMeasurementsBackfilled: true,
+        flagsCount: 4,
+      },
     },
   },
 }
@@ -250,7 +252,7 @@ describe('FileExplorer', () => {
 
     // Mock so the components selector will be populated
     server.use(
-      graphql.query('PullComponentsSelector', (info) => {
+      graphql.query('PullComponentsSelector', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -275,7 +277,7 @@ describe('FileExplorer', () => {
 
     // Mock so the flags selector will be populated
     server.use(
-      graphql.query('PullFlagsSelect', (info) => {
+      graphql.query('PullFlagsSelect', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -296,18 +298,18 @@ describe('FileExplorer', () => {
           },
         })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockBackfillData })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({
           data: { owner: { plan: { tierName: TierNames.PRO } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({ data: mockRepoSettings })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: {
             owner: {

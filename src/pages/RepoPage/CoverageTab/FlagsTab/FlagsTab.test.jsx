@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -113,7 +113,7 @@ describe('Flags Tab', () => {
     mocks.useRepoBackfilled.mockReturnValue(data)
 
     server.use(
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         if (tierValue === TierNames.TEAM) {
           return HttpResponse.json({
             data: { owner: { plan: { tierName: TierNames.TEAM } } },
@@ -123,7 +123,7 @@ describe('Flags Tab', () => {
           data: { owner: { plan: { tierName: TierNames.PRO } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({
           data: mockRepoSettings(isPrivate, isCurrentUserPartOfOrg),
         })

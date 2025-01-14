@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, Switch, useLocation } from 'react-router-dom'
 import { type Mock } from 'vitest'
 
 import config from 'config'
 
 import { useImage } from 'services/image'
+import { Plans } from 'shared/utils/billing'
 
 import UserDropdown from './UserDropdown'
 
@@ -36,7 +37,7 @@ const mockUser = {
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -109,13 +110,14 @@ describe('UserDropdown', () => {
       error: null,
     })
     config.IS_SELF_HOSTED = selfHosted
+    config.GH_APP = 'codecov'
     config.API_URL = ''
 
     server.use(
-      http.post('/logout', (info) => {
+      http.post('/logout', () => {
         return HttpResponse.json({}, { status: 205 })
       }),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: mockUser })
       })
     )

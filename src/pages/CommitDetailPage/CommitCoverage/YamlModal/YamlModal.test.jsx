@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import YamlModal from './YamlModal'
@@ -67,7 +67,7 @@ describe('YamlModal', () => {
   const showModal = vi.fn()
   function setup({ hasYamlErrors } = { hasYamlErrors: false }) {
     server.use(
-      graphql.query('CommitErrors', (info) => {
+      graphql.query('CommitErrors', () => {
         if (hasYamlErrors) {
           return HttpResponse.json({ data: mockCommitYamlErrors })
         }
@@ -115,7 +115,7 @@ describe('YamlModal', () => {
         wrapper,
       })
 
-      const bannerHeader = await screen.findByText('Commit YAML is invalid')
+      const bannerHeader = await screen.findByText('YAML is invalid')
       expect(bannerHeader).toBeInTheDocument()
     })
   })
@@ -130,7 +130,7 @@ describe('YamlModal', () => {
       await waitFor(() => queryClient.isFetching)
       await waitFor(() => !queryClient.isFetching)
 
-      const bannerHeader = screen.queryByText('Commit YAML is invalid')
+      const bannerHeader = screen.queryByText('YAML is invalid')
       expect(bannerHeader).not.toBeInTheDocument()
     })
   })

@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -105,11 +105,13 @@ const mockCommits = {
                   percentCovered: 100,
                 },
               },
-              bundleAnalysisCompareWithParent: {
-                __typename: 'BundleAnalysisComparison',
-                bundleChange: {
-                  size: {
-                    uncompress: 1001,
+              bundleAnalysis: {
+                bundleAnalysisCompareWithParent: {
+                  __typename: 'BundleAnalysisComparison',
+                  bundleChange: {
+                    size: {
+                      uncompress: 1001,
+                    },
                   },
                 },
               },
@@ -217,11 +219,11 @@ describe('CommitsTab', () => {
 
     server.use(
       graphql.query('GetBranches', (info) => {
-        if (!!info?.variables?.after) {
+        if (info?.variables?.after) {
           fetchNextPage(info?.variables?.after)
         }
 
-        if (!!info?.variables?.filters?.searchValue) {
+        if (info?.variables?.filters?.searchValue) {
           branchSearch(info?.variables?.filters?.searchValue)
         }
 
@@ -234,33 +236,33 @@ describe('CommitsTab', () => {
         return HttpResponse.json({ data: mockBranches(hasNextPage) })
       }),
       graphql.query('GetCommits', (info) => {
-        if (!!info?.variables?.filters?.branchName) {
+        if (info?.variables?.filters?.branchName) {
           branchName(info?.variables?.filters?.branchName)
         }
 
-        if (!!info?.variables?.filters?.search) {
+        if (info?.variables?.filters?.search) {
           commitSearch(info?.variables?.filters?.search)
         }
 
         return HttpResponse.json({ data: mockCommits })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
       }),
-      graphql.query('GetBranch', (info) => {
+      graphql.query('GetBranch', () => {
         if (returnBranch) {
           return HttpResponse.json({ data: mockBranch(returnBranch) })
         }
 
         return HttpResponse.json({ data: { owner: null } })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: { owner: null } })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({ data: mockRepoSettings(isPrivate) })
       }),
-      graphql.query('GetBranchCommits', (info) => {
+      graphql.query('GetBranchCommits', () => {
         if (branchHasCommits) {
           return HttpResponse.json({ data: mockBranchHasCommits })
         }
@@ -331,16 +333,6 @@ describe('CommitsTab', () => {
     })
 
     describe('when select onLoadMore is triggered', () => {
-      beforeEach(() => {
-        mocks.useIntersection.mockReturnValue({
-          isIntersecting: true,
-        })
-      })
-
-      afterEach(() => {
-        vi.clearAllMocks()
-      })
-
       describe('when there is not a next page', () => {
         it('does not call fetchNextPage', async () => {
           const { user, fetchNextPage } = setup({ hasNextPage: false })
@@ -357,11 +349,11 @@ describe('CommitsTab', () => {
 
       describe('when there is a next page', () => {
         it('calls fetchNextPage', async () => {
-          const { fetchNextPage, user } = setup({ hasNextPage: true })
+          const { fetchNextPage } = setup({ hasNextPage: true })
+          mocks.useIntersection.mockReturnValue({
+            isIntersecting: true,
+          })
           render(<CommitsTab />, { wrapper })
-
-          const select = await screen.findByText('Select branch')
-          await user.click(select)
 
           await waitFor(() =>
             expect(fetchNextPage).toHaveBeenCalledWith('some cursor')

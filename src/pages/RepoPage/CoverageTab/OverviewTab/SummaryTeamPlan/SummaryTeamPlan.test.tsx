@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type Mock } from 'vitest'
@@ -104,10 +104,12 @@ const mockRepoCoverage = {
     name: 'main',
     head: {
       yamlState: 'DEFAULT',
-      totals: {
-        percentCovered: 95.0,
-        lineCount: 100,
-        hitsCount: 100,
+      coverageAnalytics: {
+        totals: {
+          percentCovered: 95.0,
+          lineCount: 100,
+          hitsCount: 100,
+        },
       },
     },
   },
@@ -193,7 +195,7 @@ describe('Summary', () => {
     })
 
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -203,7 +205,7 @@ describe('Summary', () => {
           },
         })
       }),
-      graphql.query('GetBranch', (info) => {
+      graphql.query('GetBranch', () => {
         return HttpResponse.json({
           data: {
             owner: { repository: { __typename: 'Repository', ...mockBranch } },
@@ -229,7 +231,7 @@ describe('Summary', () => {
           data: { owner: { repository: mockBranches(hasNextPage) } },
         })
       }),
-      graphql.query('GetRepoCoverage', (info) => {
+      graphql.query('GetRepoCoverage', () => {
         return HttpResponse.json({
           data: { owner: { repository: mockRepoCoverage } },
         })
@@ -346,7 +348,7 @@ describe('Summary', () => {
     describe('there is a next page', () => {
       it('calls fetchNextPage', async () => {
         const mockSetNewPath = vi.fn()
-        const { fetchNextPage, user } = setup({
+        const { fetchNextPage } = setup({
           isIntersecting: true,
           hasNextPage: true,
           coverageRedirectData: {
@@ -358,11 +360,6 @@ describe('Summary', () => {
           },
         })
         render(<SummaryTeamPlan />, { wrapper: wrapper() })
-
-        const select = await screen.findByRole('button', {
-          name: 'select branch',
-        })
-        await user.click(select)
 
         await waitFor(() => expect(fetchNextPage).toHaveBeenCalled())
       })

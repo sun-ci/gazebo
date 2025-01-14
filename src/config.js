@@ -1,5 +1,7 @@
 import mapKeys from 'lodash/mapKeys'
 
+export const DEFAULT_GH_APP = 'codecov'
+
 const defaultConfig = {
   API_URL: '',
   STRIPE_KEY: '',
@@ -9,6 +11,7 @@ const defaultConfig = {
   SENTRY_SESSION_SAMPLE_RATE: 0.1,
   SENTRY_ERROR_SAMPLE_RATE: 1,
   GH_APP: 'sun-codecov-self-hosted',
+  GH_APP_AI: 'codecov-ai',
 }
 
 export function removeReactAppPrefix(obj) {

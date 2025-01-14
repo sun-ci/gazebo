@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
@@ -50,7 +49,7 @@ describe('ThemeToggle', () => {
     expect(icon).toBeInTheDocument()
 
     // toggle to dark mode
-    userEvent.click(button)
+    await userEvent.click(button)
 
     await waitFor(() => {
       expect(mockSetItem).toHaveBeenCalledWith('theme', 'dark')
@@ -61,14 +60,8 @@ describe('ThemeToggle', () => {
       expect(sunIcon).toHaveAttribute('data-icon', 'sun')
     })
 
-    expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-      'button_clicked.theme.dark',
-      1,
-      undefined
-    )
-
     // toggle back to light mode
-    userEvent.click(button)
+    await userEvent.click(button)
     await waitFor(() => {
       expect(mockSetItem).toHaveBeenCalledWith('theme', 'light')
     })
@@ -76,19 +69,11 @@ describe('ThemeToggle', () => {
     await waitFor(() => {
       expect(icon).toHaveAttribute('data-icon', 'moon')
     })
-
-    await waitFor(() => {
-      expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-        'button_clicked.theme.light',
-        1,
-        undefined
-      )
-    })
   })
 
   it('assumes light mode when there is no theme in local storage', () => {
     setup({ isMediaPrefersDark: false })
-    mockGetItem.mockImplementation((key) => null)
+    mockGetItem.mockImplementation(() => null)
     render(
       <ThemeContextProvider>
         <ThemeToggle />

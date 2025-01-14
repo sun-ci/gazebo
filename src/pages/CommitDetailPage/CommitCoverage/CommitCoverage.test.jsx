@@ -1,13 +1,15 @@
-import * as Sentry from '@sentry/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import {
   render,
   screen,
-  waitFor,
   waitForElementToBeRemoved,
 } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -47,10 +49,12 @@ const mockCommitData = {
       __typename: 'Repository',
       commit: {
         branchName: null,
-        totals: {
-          coverage: 38.30846,
-          diff: {
-            coverage: null,
+        coverageAnalytics: {
+          totals: {
+            coverage: 38.30846,
+            diff: {
+              coverage: null,
+            },
           },
         },
         commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -97,8 +101,10 @@ const mockCommitData = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -112,10 +118,12 @@ const mockErroredUploads = {
       __typename: 'Repository',
       commit: {
         branchName: null,
-        totals: {
-          coverage: 38.30846,
-          diff: {
-            coverage: null,
+        coverageAnalytics: {
+          totals: {
+            coverage: 38.30846,
+            diff: {
+              coverage: null,
+            },
           },
         },
         commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -162,8 +170,10 @@ const mockErroredUploads = {
         },
         parent: {
           commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-          totals: {
-            coverage: 38.30846,
+          coverageAnalytics: {
+            totals: {
+              coverage: 38.30846,
+            },
           },
         },
       },
@@ -203,9 +213,11 @@ const mockRepoBackfilledData = {
   },
   owner: {
     repository: {
-      flagsMeasurementsActive: false,
-      flagsMeasurementsBackfilled: false,
-      flagsCount: 0,
+      coverageAnalytics: {
+        flagsMeasurementsActive: false,
+        flagsMeasurementsBackfilled: false,
+        flagsCount: 0,
+      },
     },
   },
 }
@@ -273,7 +285,9 @@ const mockCommitComponentData = {
     repository: {
       __typename: 'Repository',
       commit: {
-        components: [],
+        coverageAnalytics: {
+          components: [],
+        },
       },
     },
   },
@@ -302,8 +316,14 @@ const mockCommitPageData = (
                 ? 'FirstPullRequest'
                 : 'Comparison',
         },
-        bundleAnalysisCompareWithParent: {
-          __typename: 'BundleAnalysisComparison',
+        bundleAnalysis: {
+          bundleAnalysisReport: {
+            __typename: 'BundleAnalysisReport',
+            isCached: false,
+          },
+          bundleAnalysisCompareWithParent: {
+            __typename: 'BundleAnalysisComparison',
+          },
         },
       },
     },
@@ -344,17 +364,20 @@ const server = setupServer()
 const wrapper =
   ({
     queryClient,
+    queryClientV5,
     initialEntries = '/gh/test-org/test-repo/commit/1234567890abcdef',
     path = '/:provider/:owner/:repo/commit/:commit',
   }) =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntries]}>
-        <Route path={path}>
-          <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
-        </Route>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialEntries]}>
+          <Route path={path}>
+            <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
+          </Route>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 beforeAll(() => {
@@ -394,26 +417,24 @@ describe('CommitCoverage', () => {
     }
   ) {
     const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          suspense: true,
-        },
-      },
+      defaultOptions: { queries: { retry: false, suspense: true } },
+    })
+    const queryClientV5 = new QueryClientV5({
+      defaultOptions: { queries: { retry: false } },
     })
 
     server.use(
-      graphql.query('Commit', (info) => {
+      graphql.query('Commit', () => {
         if (hasErroredUploads) {
           return HttpResponse.json({ data: mockErroredUploads })
         }
 
         return HttpResponse.json({ data: mockCommitData })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({ data: mockRepoSettingsTeamData(isPrivate) })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview({
             coverageEnabled,
@@ -422,25 +443,25 @@ describe('CommitCoverage', () => {
           }),
         })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({ data: mockOwnerTier(tierName) })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockRepoBackfilledData })
       }),
-      graphql.query('CommitErrors', (info) => {
+      graphql.query('CommitErrors', () => {
         return HttpResponse.json({ data: mockCommitErrors(hasCommitErrors) })
       }),
-      graphql.query('DetailOwner', (info) => {
+      graphql.query('DetailOwner', () => {
         return HttpResponse.json({ data: mockOwnerData })
       }),
-      graphql.query('CompareTotals', (info) => {
+      graphql.query('CompareTotals', () => {
         return HttpResponse.json({ data: mockCompareTotals })
       }),
-      graphql.query('CommitComponents', (info) => {
+      graphql.query('CommitComponents', () => {
         return HttpResponse.json({ data: mockCommitComponentData })
       }),
-      graphql.query('CommitPageData', (info) => {
+      graphql.query('CommitPageData', () => {
         return HttpResponse.json({
           data: mockCommitPageData(
             hasCommitPageMissingCommitDataError,
@@ -449,21 +470,23 @@ describe('CommitCoverage', () => {
           ),
         })
       }),
-      graphql.query('GetRepoRateLimitStatus', (info) => {
+      graphql.query('GetRepoRateLimitStatus', () => {
         return HttpResponse.json({
           data: mockRepoRateLimitStatus({ isGithubRateLimited }),
         })
       })
     )
 
-    return { queryClient }
+    return { queryClient, queryClientV5 }
   }
 
   describe('testing different routes', () => {
     describe('/:provider/:owner/:repo/commit/:commit', () => {
       it('renders files changed tab', async () => {
-        const { queryClient } = setup()
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+        const { queryClient, queryClientV5 } = setup()
+        render(<CommitCoverage />, {
+          wrapper: wrapper({ queryClient, queryClientV5 }),
+        })
 
         const filesChangedTab = await screen.findByText('FilesChangedTab')
         expect(filesChangedTab).toBeInTheDocument()
@@ -472,10 +495,11 @@ describe('CommitCoverage', () => {
 
     describe('/:provider/:owner/:repo/commit/:commit/indirect-changes', () => {
       it('renders indirect changes tab', async () => {
-        const { queryClient } = setup()
+        const { queryClient, queryClientV5 } = setup()
         render(<CommitCoverage />, {
           wrapper: wrapper({
             queryClient,
+            queryClientV5,
             path: '/:provider/:owner/:repo/commit/:commit/indirect-changes',
             initialEntries:
               '/gh/test-org/test-repo/commit/1234567890abcdef/indirect-changes',
@@ -489,10 +513,11 @@ describe('CommitCoverage', () => {
 
     describe('/:provider/:owner/:repo/commit/:commit/tree/', () => {
       it('renders commit detail file explorer', async () => {
-        const { queryClient } = setup()
+        const { queryClient, queryClientV5 } = setup()
         render(<CommitCoverage />, {
           wrapper: wrapper({
             queryClient,
+            queryClientV5,
             path: '/:provider/:owner/:repo/commit/:commit/tree/',
             initialEntries:
               '/gh/test-org/test-repo/commit/1234567890abcdef/tree',
@@ -506,10 +531,11 @@ describe('CommitCoverage', () => {
 
     describe('/:provider/:owner/:repo/commit/:commit/tree/:path+', () => {
       it('renders commit detail file explorer', async () => {
-        const { queryClient } = setup()
+        const { queryClient, queryClientV5 } = setup()
         render(<CommitCoverage />, {
           wrapper: wrapper({
             queryClient,
+            queryClientV5,
             path: '/:provider/:owner/:repo/commit/:commit/tree/:path+',
             initialEntries:
               '/gh/test-org/test-repo/commit/1234567890abcdef/tree/src/',
@@ -523,10 +549,11 @@ describe('CommitCoverage', () => {
 
     describe('/:provider/:owner/:repo/commit/:commit/blob/:path+', () => {
       it('renders commit detail file viewer', async () => {
-        const { queryClient } = setup()
+        const { queryClient, queryClientV5 } = setup()
         render(<CommitCoverage />, {
           wrapper: wrapper({
             queryClient,
+            queryClientV5,
             path: '/:provider/:owner/:repo/commit/:commit/blob/:path+',
             initialEntries:
               '/gh/test-org/test-repo/commit/1234567890abcdef/blob/src/index.js',
@@ -542,8 +569,10 @@ describe('CommitCoverage', () => {
   describe('there are no errored uploads', () => {
     describe('rendering uploads card', () => {
       it('renders uploads card', async () => {
-        const { queryClient } = setup()
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+        const { queryClient, queryClientV5 } = setup()
+        render(<CommitCoverage />, {
+          wrapper: wrapper({ queryClient, queryClientV5 }),
+        })
 
         const uploadsCard = await screen.findByText('UploadsCard')
         expect(uploadsCard).toBeInTheDocument()
@@ -552,11 +581,13 @@ describe('CommitCoverage', () => {
 
     describe('user is on a team plan', () => {
       it('does not render commit coverage summary', async () => {
-        const { queryClient } = setup({
+        const { queryClient, queryClientV5 } = setup({
           tierName: TierNames.TEAM,
           isPrivate: true,
         })
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+        render(<CommitCoverage />, {
+          wrapper: wrapper({ queryClient, queryClientV5 }),
+        })
 
         const loader = await screen.findByText('Loading')
         await waitForElementToBeRemoved(loader)
@@ -566,11 +597,13 @@ describe('CommitCoverage', () => {
       })
 
       it('does not render indirect changes tab', async () => {
-        const { queryClient } = setup({
+        const { queryClient, queryClientV5 } = setup({
           tierName: TierNames.TEAM,
           isPrivate: true,
         })
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+        render(<CommitCoverage />, {
+          wrapper: wrapper({ queryClient, queryClientV5 }),
+        })
 
         const loader = await screen.findByText('Loading')
         await waitForElementToBeRemoved(loader)
@@ -583,8 +616,10 @@ describe('CommitCoverage', () => {
 
   describe('there are bot errors', () => {
     it('renders commit summary', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const commitCoverageSummary = await screen.findByText(
         'CommitCoverageSummary'
@@ -593,16 +628,20 @@ describe('CommitCoverage', () => {
     })
 
     it('renders uploads card', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const uploadsCard = await screen.findByText('UploadsCard')
       expect(uploadsCard).toBeInTheDocument()
     })
 
     it('renders bot error banner', async () => {
-      const { queryClient } = setup({ hasCommitErrors: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasCommitErrors: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const botErrorBanner = await screen.findByText('BotErrorBanner')
       expect(botErrorBanner).toBeInTheDocument()
@@ -611,8 +650,10 @@ describe('CommitCoverage', () => {
 
   describe('there are yaml errors', () => {
     it('renders commit summary', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const commitCoverageSummary = await screen.findByText(
         'CommitCoverageSummary'
@@ -621,16 +662,20 @@ describe('CommitCoverage', () => {
     })
 
     it('renders uploads card', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const uploadsCard = await screen.findByText('UploadsCard')
       expect(uploadsCard).toBeInTheDocument()
     })
 
     it('renders yaml error banner', async () => {
-      const { queryClient } = setup({ hasCommitErrors: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasCommitErrors: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const yamlErrorBanner = await screen.findByText('YamlErrorBanner')
       expect(yamlErrorBanner).toBeInTheDocument()
@@ -639,8 +684,10 @@ describe('CommitCoverage', () => {
 
   describe('there are errored uploads', () => {
     it('renders commit summary', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const commitCoverageSummary = await screen.findByText(
         'CommitCoverageSummary'
@@ -649,19 +696,23 @@ describe('CommitCoverage', () => {
     })
 
     it('renders uploads card', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const uploadsCard = await screen.findByText('UploadsCard')
       expect(uploadsCard).toBeInTheDocument()
     })
 
     it('renders error uploads component', async () => {
-      const { queryClient } = setup({ hasErroredUploads: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasErroredUploads: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const erroredUploads = await screen.findByText(
-        /The following uploads failed to process:/
+        /No coverage data is available due to incomplete uploads on the first attempt./
       )
       expect(erroredUploads).toBeInTheDocument()
     })
@@ -669,8 +720,10 @@ describe('CommitCoverage', () => {
 
   describe('comparison returns first pull request', () => {
     it('renders first pull banner', async () => {
-      const { queryClient } = setup({ hasFirstPR: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({ hasFirstPR: true })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const firstPullRequest = await screen.findByText(/Welcome to Codecov/)
       expect(firstPullRequest).toBeInTheDocument()
@@ -679,70 +732,39 @@ describe('CommitCoverage', () => {
 
   describe('commit has errors', () => {
     it('renders error banner for missing base commit', async () => {
-      const { queryClient } = setup({
+      const { queryClient, queryClientV5 } = setup({
         hasCommitPageMissingCommitDataError: true,
       })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const missingBaseCommit = await screen.findByText(/Missing Base Commit/)
       expect(missingBaseCommit).toBeInTheDocument()
     })
     it('renders error banner', async () => {
-      const { queryClient } = setup({ hasCommitPageOtherDataError: true })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      const { queryClient, queryClientV5 } = setup({
+        hasCommitPageOtherDataError: true,
+      })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const missingBaseCommit = await screen.findByText(/Missing Base Report/)
       expect(missingBaseCommit).toBeInTheDocument()
     })
   })
 
-  describe('sending metrics', () => {
-    describe('when only coverage is enabled', () => {
-      it('sends correct metrics', async () => {
-        const { queryClient } = setup({
-          coverageEnabled: true,
-          bundleAnalysisEnabled: false,
-        })
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
-
-        await waitFor(() => expect(Sentry.metrics.increment).toHaveBeenCalled())
-        await waitFor(() =>
-          expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-            'commit_detail_page.coverage_page.visited_page',
-            1,
-            undefined
-          )
-        )
-      })
-    })
-
-    describe('when coverage and bundle analysis are enabled', () => {
-      it('sends correct metrics', async () => {
-        const { queryClient } = setup({
-          coverageEnabled: true,
-          bundleAnalysisEnabled: true,
-        })
-        render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
-
-        await waitFor(() => expect(Sentry.metrics.increment).toHaveBeenCalled())
-        await waitFor(() =>
-          expect(Sentry.metrics.increment).toHaveBeenCalledWith(
-            'commit_detail_page.coverage_dropdown.opened',
-            1,
-            undefined
-          )
-        )
-      })
-    })
-  })
   describe('github rate limit messaging', () => {
     it('renders banner when github is rate limited', async () => {
-      const { queryClient } = setup({
+      const { queryClient, queryClientV5 } = setup({
         coverageEnabled: true,
         bundleAnalysisEnabled: true,
         isGithubRateLimited: true,
       })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const rateLimitText = await screen.findByText(
         /Unable to calculate coverage/
@@ -751,11 +773,13 @@ describe('CommitCoverage', () => {
     })
 
     it('does not render banner when github is not rate limited', async () => {
-      const { queryClient } = setup({
+      const { queryClient, queryClientV5 } = setup({
         coverageEnabled: true,
         bundleAnalysisEnabled: true,
       })
-      render(<CommitCoverage />, { wrapper: wrapper({ queryClient }) })
+      render(<CommitCoverage />, {
+        wrapper: wrapper({ queryClient, queryClientV5 }),
+      })
 
       const rateLimitText = screen.queryByText(/Unable to calculate coverage/)
       expect(rateLimitText).not.toBeInTheDocument()

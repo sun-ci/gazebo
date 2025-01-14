@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useCompareTotalsTeam } from './useCompareTotalsTeam'
@@ -96,7 +96,7 @@ describe('useCompareTotalsTeam', () => {
     isNullOwner = false,
   }: SetupArgs) {
     server.use(
-      graphql.query('GetCompareTotalsTeam', (info) => {
+      graphql.query('GetCompareTotalsTeam', () => {
         if (isNotFoundError) {
           return HttpResponse.json({ data: mockNotFoundError })
         } else if (isOwnerNotActivatedError) {
@@ -200,7 +200,10 @@ describe('useCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 404 })
+          expect.objectContaining({
+            status: 404,
+            dev: 'useCompareTotalsTeam - 404 not found',
+          })
         )
       )
     })
@@ -233,7 +236,10 @@ describe('useCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 403 })
+          expect.objectContaining({
+            status: 403,
+            dev: 'useCompareTotalsTeam - 403 owner not activated',
+          })
         )
       )
     })
@@ -266,7 +272,10 @@ describe('useCompareTotalsTeam', () => {
       await waitFor(() => expect(result.current.isError).toBeTruthy())
       await waitFor(() =>
         expect(result.current.error).toEqual(
-          expect.objectContaining({ status: 404 })
+          expect.objectContaining({
+            status: 404,
+            dev: 'useCompareTotalsTeam - 404 failed to parse',
+          })
         )
       )
     })

@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
+
+import { Plans } from 'shared/utils/billing'
 
 import BillingDetails from './BillingDetails'
 
@@ -46,7 +48,7 @@ const mockSubscription = {
     },
   },
   plan: {
-    value: 'users-pr-inappy',
+    value: Plans.USERS_PR_INAPPY,
   },
   currentPeriodEnd: 1606851492,
   cancelAtPeriodEnd: false,
@@ -60,7 +62,7 @@ describe('BillingDetails', () => {
     }
   ) {
     server.use(
-      http.get('/internal/gh/:owner/account-details/', (info) => {
+      http.get('/internal/gh/:owner/account-details/', () => {
         if (hasSubscription) {
           return HttpResponse.json({
             subscriptionDetail: hasTax

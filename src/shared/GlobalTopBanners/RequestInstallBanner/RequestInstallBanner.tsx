@@ -4,9 +4,9 @@ import { useParams, useRouteMatch } from 'react-router-dom'
 import config from 'config'
 
 import { useLocationParams } from 'services/navigation'
+import { Provider } from 'shared/api/helpers'
 import AppInstallModal from 'shared/AppInstallModal'
-import { providerToName } from 'shared/utils'
-import { metrics } from 'shared/utils/metrics'
+import { providerToName } from 'shared/utils/provider'
 import Button from 'ui/Button'
 import Icon from 'ui/Icon'
 import TopBanner, { saveToLocalStorage } from 'ui/TopBanner'
@@ -14,7 +14,7 @@ import TopBanner, { saveToLocalStorage } from 'ui/TopBanner'
 const APP_INSTALL_BANNER_KEY = 'request-install-banner'
 
 interface URLParams {
-  provider: string
+  provider: Provider
 }
 
 const defaultQueryParams = {
@@ -32,7 +32,7 @@ const RequestInstallBanner = () => {
   // @ts-expect-errors useLocationParams needs to be updated to support generic types
   const setupAction = params?.setup_action
 
-  const isGitHubProvider = provider && providerToName(provider) === 'Github'
+  const isGitHubProvider = provider && providerToName(provider) === 'GitHub'
 
   const closeModalAndSaveToLocalStorage = () => {
     saveToLocalStorage(APP_INSTALL_BANNER_KEY)
@@ -76,7 +76,6 @@ const RequestInstallBanner = () => {
             onClick={() => {
               // this has the side effect of hiding the banner
               setShowAppInstallModal(true)
-              metrics.increment('request_install.user.shared.request')
             }}
           >
             Share Request

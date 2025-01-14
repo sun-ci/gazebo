@@ -7,8 +7,8 @@ import {
   waitForElementToBeRemoved,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { mockIsIntersecting } from 'react-intersection-observer/test-utils'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
@@ -54,51 +54,53 @@ const mockFlagMeasurements = ({
     owner: {
       repository: {
         __typename: 'Repository',
-        flags: {
-          edges: after
-            ? [
-                {
-                  node: {
-                    name: 'flagD',
-                    percentCovered: 10,
-                    percentChange: -1,
-                    measurements: [{ avg: 20 }, { avg: 30 }],
+        coverageAnalytics: {
+          flags: {
+            edges: after
+              ? [
+                  {
+                    node: {
+                      name: 'flagD',
+                      percentCovered: 10,
+                      percentChange: -1,
+                      measurements: [{ avg: 20 }, { avg: 30 }],
+                    },
                   },
-                },
-              ]
-            : [
-                {
-                  node: {
-                    name: 'flagA',
-                    percentCovered: 93.26,
-                    percentChange: -1.56,
-                    measurements: [{ avg: 51.78 }, { avg: 93.356 }],
+                ]
+              : [
+                  {
+                    node: {
+                      name: 'flagA',
+                      percentCovered: 93.26,
+                      percentChange: -1.56,
+                      measurements: [{ avg: 51.78 }, { avg: 93.356 }],
+                    },
                   },
-                },
-                {
-                  node: {
-                    name: 'flagB',
-                    percentCovered: 91.74,
-                    percentChange: null,
-                    measurements: [{ avg: null }, { avg: null }],
+                  {
+                    node: {
+                      name: 'flagB',
+                      percentCovered: 91.74,
+                      percentChange: null,
+                      measurements: [{ avg: null }, { avg: null }],
+                    },
                   },
-                },
-                {
-                  node: includeNullFlag
-                    ? null
-                    : {
-                        name: 'testtest',
-                        percentCovered: 1.0,
-                        percentChange: 1.0,
-                        measurements: [{ avg: 51.78 }, { avg: 93.356 }],
-                      },
-                },
-              ],
-          pageInfo: {
-            hasNextPage: after ? false : true,
-            endCursor: after
-              ? 'aa'
-              : 'MjAyMC0wOC0xMSAxNzozMDowMiswMDowMHwxMDA=',
+                  {
+                    node: includeNullFlag
+                      ? null
+                      : {
+                          name: 'testtest',
+                          percentCovered: 1.0,
+                          percentChange: 1.0,
+                          measurements: [{ avg: 51.78 }, { avg: 93.356 }],
+                        },
+                  },
+                ],
+            pageInfo: {
+              hasNextPage: after ? false : true,
+              endCursor: after
+                ? 'aa'
+                : 'MjAyMC0wOC0xMSAxNzozMDowMiswMDowMHwxMDA=',
+            },
           },
         },
       },
@@ -110,20 +112,22 @@ const mockNoReportsUploadedMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      flags: {
-        edges: [
-          {
-            node: {
-              name: 'flagA',
-              percentCovered: null,
-              percentChange: null,
-              measurements: [{ avg: null }, { avg: null }],
+      coverageAnalytics: {
+        flags: {
+          edges: [
+            {
+              node: {
+                name: 'flagA',
+                percentCovered: null,
+                percentChange: null,
+                measurements: [{ avg: null }, { avg: null }],
+              },
             },
+          ],
+          pageInfo: {
+            hasNextPage: true,
+            endCursor: 'end-cursor',
           },
-        ],
-        pageInfo: {
-          hasNextPage: true,
-          endCursor: 'end-cursor',
         },
       },
     },
@@ -134,11 +138,13 @@ const mockEmptyFlagMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      flags: {
-        edges: [],
-        pageInfo: {
-          hasNextPage: false,
-          endCursor: null,
+      coverageAnalytics: {
+        flags: {
+          edges: [],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: null,
+          },
         },
       },
     },
@@ -224,10 +230,10 @@ describe('FlagsTable', () => {
 
         return HttpResponse.json({ data: mockFlagMeasurements({}) })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: mockGetRepo({ isAdmin }) })
       }),
-      graphql.query('RepoConfig', (info) =>
+      graphql.query('RepoConfig', () =>
         HttpResponse.json({ data: mockRepoConfig })
       )
     )

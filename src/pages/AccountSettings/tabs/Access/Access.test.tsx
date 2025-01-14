@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { subDays } from 'date-fns'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
+
+import { Plans } from 'shared/utils/billing'
 
 import Access from './Access'
 
@@ -35,7 +37,7 @@ const mockSignedInUser = {
       service: 'github',
       ownerid: 123,
       serviceId: '123',
-      plan: 'users-basic',
+      plan: Plans.USERS_BASIC,
       staff: false,
       hasYaml: false,
       bot: null,
@@ -125,13 +127,13 @@ describe('AccessTab', () => {
     const user = userEvent.setup()
 
     server.use(
-      graphql.query('MySessions', (info) => {
+      graphql.query('MySessions', () => {
         return HttpResponse.json({ data: mockSessionInfo })
       }),
-      graphql.query('CurrentUser', (info) => {
+      graphql.query('CurrentUser', () => {
         return HttpResponse.json({ data: mockSignedInUser })
       }),
-      graphql.mutation('DeleteSession', (info) => {
+      graphql.mutation('DeleteSession', () => {
         return HttpResponse.json({ data: {} })
       })
     )

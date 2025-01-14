@@ -1,15 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { OrderingDirection, OrderingParameter } from 'services/pull/usePullTeam'
 
 import TableTeam, { getFilter } from './TableTeam'
 
-vi.mock('../FileDiff', () => ({ default: () => 'FileDiff' }))
+vi.mock('../PullFileDiff', () => ({ default: () => 'PullFileDiff' }))
 
 const mockComparisonTeamData = {
   owner: {
@@ -412,7 +412,7 @@ describe('TableTeam', () => {
       expect(expander).toBeInTheDocument()
       await user.click(expander)
 
-      const pullFileDiff = await screen.findByText('FileDiff')
+      const pullFileDiff = await screen.findByText('PullFileDiff')
       expect(pullFileDiff).toBeInTheDocument()
     })
 
@@ -424,7 +424,7 @@ describe('TableTeam', () => {
         ]),
       })
 
-      const pullFileDiff = await screen.findByText('FileDiff')
+      const pullFileDiff = await screen.findByText('PullFileDiff')
       expect(pullFileDiff).toBeInTheDocument()
     })
   })

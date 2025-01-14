@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import ManageAdminCard from './ManageAdminCard'
@@ -110,7 +110,7 @@ describe('ManageAdminCard', () => {
       render(<ManageAdminCard />, { wrapper })
 
       const noAdmins = await screen.findByText(
-        /No admins yet. Note that admins in your Github organization are automatically considered admins./
+        /No admins yet. Note that admins in your GitHub organization are automatically considered admins./
       )
       expect(noAdmins).toBeInTheDocument()
     })
@@ -123,7 +123,7 @@ describe('ManageAdminCard', () => {
       render(<ManageAdminCard />, { wrapper })
 
       const noAdmins = await screen.findByText(
-        /No admins yet. Note that admins in your Github organization are automatically considered admins./
+        /No admins yet. Note that admins in your GitHub organization are automatically considered admins./
       )
       expect(noAdmins).toBeInTheDocument()
     })

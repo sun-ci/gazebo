@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useOwnerPageData } from './useOwnerPageData'
@@ -36,7 +36,7 @@ afterAll(() => server.close())
 describe('useOwnerPageData', () => {
   function setup() {
     server.use(
-      graphql.query('OwnerPageData', (info) => {
+      graphql.query('OwnerPageData', () => {
         return HttpResponse.json({ data: { owner: mockOwner } })
       })
     )

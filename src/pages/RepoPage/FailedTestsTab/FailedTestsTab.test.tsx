@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { PropsWithChildren, Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 
@@ -18,7 +18,7 @@ vi.mock('./GitHubActions', () => ({
 vi.mock('./CodecovCLI', () => ({
   default: () => 'Codecov CLI tab',
 }))
-vi.mock('./FailedTestsTable/FailedTestsTable.tsx', () => ({
+vi.mock('./FailedTestsTable/FailedTestsTable', () => ({
   default: () => 'Failed Tests Table',
 }))
 vi.mock('./FailedTestsTable/BranchSelector', () => ({
@@ -26,6 +26,9 @@ vi.mock('./FailedTestsTable/BranchSelector', () => ({
 }))
 vi.mock('../ActivationAlert', () => ({
   default: () => 'Activation Alert',
+}))
+vi.mock('./FailedTestsPage/FailedTestsPage', () => ({
+  default: () => 'Failed Tests Page',
 }))
 
 vi.mock('shared/useRedirect', async () => {
@@ -126,7 +129,7 @@ describe('FailedTestsTab', () => {
     isPrivate?: boolean
   }) {
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         if (testEnabled) {
           return HttpResponse.json({
             data: mockRepoOverview({
@@ -251,21 +254,12 @@ describe('FailedTestsTab', () => {
       expect(content).toBeInTheDocument()
     })
 
-    it('renders Failed Tests Table', async () => {
+    it('renders Failed Tests Page', async () => {
       setup({ testEnabled: true })
       render(<FailedTestsTab />, {
         wrapper: wrapper('/gh/codecov/cool-repo/tests'),
       })
-      const content = await screen.findByText(/Failed Tests Table/)
-      expect(content).toBeInTheDocument()
-    })
-
-    it('renders Branch Selector', async () => {
-      setup({ testEnabled: true })
-      render(<FailedTestsTab />, {
-        wrapper: wrapper('/gh/codecov/cool-repo/tests'),
-      })
-      const content = await screen.findByText(/Branch Selector/)
+      const content = await screen.findByText(/Failed Tests Page/)
       expect(content).toBeInTheDocument()
     })
   })
@@ -285,7 +279,7 @@ describe('FailedTestsTab', () => {
       expect(activationAlert).toBeInTheDocument()
     })
 
-    it('renders failed tests table if public repo', async () => {
+    it('renders failed tests page if public repo', async () => {
       setup({
         testEnabled: true,
         isCurrentUserActivated: false,
@@ -295,8 +289,8 @@ describe('FailedTestsTab', () => {
         wrapper: wrapper('/gh/codecov/cool-repo/tests'),
       })
 
-      const activationAlert = await screen.findByText(/Failed Tests Table/)
-      expect(activationAlert).toBeInTheDocument()
+      const page = await screen.findByText(/Failed Tests Page/)
+      expect(page).toBeInTheDocument()
     })
   })
 })

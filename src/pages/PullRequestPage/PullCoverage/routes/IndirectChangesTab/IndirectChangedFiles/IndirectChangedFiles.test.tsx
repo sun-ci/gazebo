@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { PullComparison } from 'services/pull'
@@ -10,7 +10,7 @@ import { UploadTypeEnum } from 'shared/utils/commit'
 
 import IndirectChangedFiles from './IndirectChangedFiles'
 
-vi.mock('../FileDiff', () => ({ default: () => 'FileDiff Component' }))
+vi.mock('../PullFileDiff', () => ({ default: () => 'FileDiff Component' }))
 
 const mockImpactedFiles = [
   {
@@ -88,8 +88,10 @@ const mockPull = (overrideComparison?: PullComparison) => ({
             'gh-eng-994-create-bundle-analysis-table-for-a-given-pull',
           state: 'complete',
           commitid: 'fc43199b07c52cf3d6c19b7cdb368f74387c38ab',
-          totals: {
-            percentCovered: 78.33,
+          coverageAnalytics: {
+            totals: {
+              percentCovered: 78.33,
+            },
           },
           uploads: {
             totalCount: 0,
@@ -215,11 +217,20 @@ describe('IndirectChangedFiles', () => {
         mockVars(info.variables)
         return HttpResponse.json({ data: mockPull(overrideComparison) })
       }),
-      graphql.query('ImpactedFileComparison', (info) =>
+      graphql.query('ImpactedFileComparison', () =>
         HttpResponse.json({ data: mockSingularImpactedFilesData })
       ),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview })
+      }),
+      graphql.query('PullComponentsSelector', () => {
+        return HttpResponse.json({ data: { owner: null } })
+      }),
+      graphql.query('BackfillFlagMemberships', () => {
+        return HttpResponse.json({ data: { owner: null } })
+      }),
+      graphql.query('OwnerTier', () => {
+        return HttpResponse.json({ data: { owner: null } })
       })
     )
 
@@ -299,14 +310,8 @@ describe('IndirectChangedFiles', () => {
           expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
         )
 
-        const link = await screen.findByRole('link', {
-          name: 'flag1/mafs.js',
-        })
-        expect(link).toBeInTheDocument()
-        expect(link).toHaveAttribute(
-          'href',
-          '/gh/test-org/test-repo/pull/2510/blob/flag1/mafs.js'
-        )
+        const text = await screen.findByText('flag1/mafs.js')
+        expect(text).toBeInTheDocument()
       })
 
       it('renders change coverage', async () => {
@@ -394,7 +399,7 @@ describe('IndirectChangedFiles', () => {
         expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
       )
 
-      const nameExpander = await screen.findByTestId('name-expand')
+      const nameExpander = await screen.findByTestId('file-diff-expand')
       await user.click(nameExpander)
 
       const fileDiff = await screen.findByText('FileDiff Component')

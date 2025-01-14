@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { type MockInstance } from 'vitest'
 
 import { useInfiniteUsers } from './useInfiniteUser'
@@ -60,7 +60,7 @@ beforeEach(() => {
 afterAll(() => server.close())
 
 describe('useInfiniteUser', () => {
-  function setup(options = {}) {
+  function setup() {
     server.use(
       http.get('/internal/gh/codecov/users', (info) => {
         const searchParams = new URL(info.request.url).searchParams
@@ -162,7 +162,7 @@ describe('useInfiniteUser', () => {
     beforeEach(() => {
       consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       server.use(
-        http.get('/internal/gh/codecov/users', (info) => {
+        http.get('/internal/gh/codecov/users', () => {
           return HttpResponse.json({ count: 2 })
         })
       )

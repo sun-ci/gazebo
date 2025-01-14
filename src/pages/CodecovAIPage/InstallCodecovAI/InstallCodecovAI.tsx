@@ -10,22 +10,21 @@ const COPY_APP_INSTALL_STRING =
 const InstallCodecovAI: React.FC = () => {
   const { theme } = useThemeContext()
   const isDarkMode = theme === Theme.DARK
-  const githubImage = loginProviderImage('Github', !isDarkMode)
+  const githubImage = loginProviderImage('GitHub', !isDarkMode)
 
   return (
     <div>
       <Card>
         <Card.Header>
           <Card.Title size="base">
-            Install the Codecov AI app on Github
+            Install the Codecov AI app on GitHub
           </Card.Title>
         </Card.Header>
         <Card.Content>
           To enable the Codecov AI assistant in your GitHub organization, or on
           specific repositories, you need to install the Codecov AI GitHub App
-          Integration. This will allow the assistant to analyze pull requests,
-          provide insights, and generate new tests to help increase your code
-          coverage.
+          Integration. This will allow the assistant to analyze pull requests
+          and provide insights.
           <div className="mt-4 flex">
             <Button
               to={{

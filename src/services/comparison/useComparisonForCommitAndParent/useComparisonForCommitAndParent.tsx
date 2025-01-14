@@ -20,20 +20,6 @@ import {
   MissingHeadReportSchema,
 } from '../schemas'
 
-interface UseComparisonForCommitAndParentArgs {
-  provider: string
-  owner: string
-  repo: string
-  commitid: string
-  path: string
-  filters?: {
-    hasUnintendedChanges?: boolean
-  }
-  opts?: {
-    select: (res?: any) => any
-  }
-}
-
 const CoverageObjSchema = z.object({
   coverage: z.number().nullish(),
 })
@@ -76,7 +62,7 @@ export type ImpactedFileType = z.infer<typeof ImpactedFileSchema>
 
 const ComparisonSchema = z.object({
   __typename: z.literal('Comparison'),
-  impactedFile: ImpactedFileSchema,
+  impactedFile: ImpactedFileSchema.nullable(),
 })
 
 const CompareWithParentSchema = z
@@ -114,6 +100,20 @@ export const ComparisonForCommitAndParentSchema = z.object({
     .nullable(),
 })
 
+interface UseComparisonForCommitAndParentArgs {
+  provider: string
+  owner: string
+  repo: string
+  commitid: string
+  path: string
+  filters?: {
+    hasUnintendedChanges?: boolean
+  }
+  opts?: {
+    enabled?: boolean
+  }
+}
+
 // TODO: make the a similar hook for the comparison with base, useComparisonForHeadAndBase
 export function useComparisonForCommitAndParent({
   provider,
@@ -122,8 +122,13 @@ export function useComparisonForCommitAndParent({
   commitid,
   path,
   filters,
-  opts,
+  opts = {},
 }: UseComparisonForCommitAndParentArgs) {
+  let enabled = true
+  if (opts?.enabled !== undefined) {
+    enabled = opts.enabled
+  }
+
   return useQuery({
     queryKey: [
       'ImpactedFileComparedWithParent',
@@ -177,7 +182,7 @@ export function useComparisonForCommitAndParent({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>
@@ -187,9 +192,15 @@ export function useComparisonForCommitAndParent({
           } satisfies NetworkErrorObject)
         }
 
-        return { data }
+        if (
+          data?.owner?.repository?.commit?.compareWithParent?.__typename ===
+          'Comparison'
+        ) {
+          return data?.owner?.repository?.commit?.compareWithParent
+        }
+
+        return null
       }),
-    suspense: false,
-    ...opts,
+    enabled,
   })
 }

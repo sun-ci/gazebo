@@ -4,8 +4,8 @@ import {
   screen,
   waitForElementToBeRemoved,
 } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { mockIsIntersecting } from 'react-intersection-observer/test-utils'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -138,7 +138,7 @@ describe('PullsTable', () => {
     const queryClient = new QueryClient()
 
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: mockRepoOverview(bundleAnalysisEnabled),
         })

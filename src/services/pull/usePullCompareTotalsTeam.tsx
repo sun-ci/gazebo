@@ -14,6 +14,7 @@ import {
   RepoOwnerNotActivatedErrorSchema,
 } from 'services/repo/schemas'
 import Api from 'shared/api'
+import { NetworkErrorObject } from 'shared/api/helpers'
 import A from 'ui/A'
 
 const CoverageObjSchema = z.object({
@@ -23,14 +24,16 @@ const CoverageObjSchema = z.object({
 const ImpactedFilesSchema = z.discriminatedUnion('__typename', [
   z.object({
     __typename: z.literal('ImpactedFiles'),
-    results: z.array(
-      z.object({
-        headName: z.string().nullable(),
-        missesCount: z.number(),
-        isCriticalFile: z.boolean(),
-        patchCoverage: CoverageObjSchema,
-      })
-    ),
+    results: z
+      .array(
+        z.object({
+          headName: z.string().nullable(),
+          missesCount: z.number(),
+          isCriticalFile: z.boolean(),
+          patchCoverage: CoverageObjSchema,
+        })
+      )
+      .nullable(),
   }),
   z.object({
     __typename: z.literal('UnknownFlags'),
@@ -149,7 +152,7 @@ interface UseCompareTotalsTeamArgs {
   owner: string
   repo: string
   pullId: string
-  filters?: {}
+  filters?: object
   opts?: UseQueryOptions<z.infer<typeof PullSchema> | null>
 }
 
@@ -188,8 +191,9 @@ export function usePullCompareTotalsTeam({
         if (!parsedRes.success) {
           return Promise.reject({
             status: 404,
-            data: null,
-          })
+            data: {},
+            dev: 'usePullCompareTotalsTeam - 404 failed to parse',
+          } satisfies NetworkErrorObject)
         }
 
         const data = parsedRes.data
@@ -198,7 +202,8 @@ export function usePullCompareTotalsTeam({
           return Promise.reject({
             status: 404,
             data: {},
-          })
+            dev: 'usePullCompareTotalsTeam - 404 not found',
+          } satisfies NetworkErrorObject)
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
@@ -208,13 +213,14 @@ export function usePullCompareTotalsTeam({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>
               ),
             },
-          })
+            dev: 'usePullCompareTotalsTeam - 403 owner not activated',
+          } satisfies NetworkErrorObject)
         }
 
         return data?.owner?.repository?.pull ?? null

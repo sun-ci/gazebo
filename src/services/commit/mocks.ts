@@ -1,6 +1,6 @@
-import { graphql, HttpResponse } from 'msw2'
+import { graphql, HttpResponse } from 'msw'
 
-export const commitErrored = graphql.query('Commit', (info) => {
+export const commitErrored = graphql.query('Commit', () => {
   return HttpResponse.json({
     data: {
       owner: {
@@ -57,7 +57,7 @@ export const commitOnePending = graphql.query('Commit', (info) => {
   })
 })
 
-export const commitOneCarriedForward = graphql.query('Commit', (info) => {
+export const commitOneCarriedForward = graphql.query('Commit', () => {
   return HttpResponse.json({
     data: {
       owner: {
@@ -93,7 +93,7 @@ export const commitOneCarriedForward = graphql.query('Commit', (info) => {
   })
 })
 
-export const commitEmptyUploads = graphql.query('Commit', (info) => {
+export const commitEmptyUploads = graphql.query('Commit', () => {
   return HttpResponse.json({
     data: {
       owner: {
@@ -106,15 +106,17 @@ export const commitEmptyUploads = graphql.query('Commit', (info) => {
   })
 })
 
-export const compareTotalsEmpty = graphql.query('CompareTotals', (info) => {
+export const compareTotalsEmpty = graphql.query('CompareTotals', () => {
   return HttpResponse.json({ data: { owner: null } })
 })
 
 const commitDataError = {
-  totals: {
-    coverage: 38.30846,
-    diff: {
-      coverage: null,
+  coverageAnalytics: {
+    totals: {
+      coverage: 38.30846,
+      diff: {
+        coverage: null,
+      },
     },
   },
   branchName: null,
@@ -290,17 +292,21 @@ const commitDataError = {
   },
   parent: {
     commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-    totals: {
-      coverage: 38.30846,
+    coverageAnalytics: {
+      totals: {
+        coverage: 38.30846,
+      },
     },
   },
 }
 
 const commitDataEmpty = {
-  totals: {
-    coverage: 38.30846,
-    diff: {
-      coverage: null,
+  coverageAnalytics: {
+    totals: {
+      coverage: 38.30846,
+      diff: {
+        coverage: null,
+      },
     },
   },
   commitid: 'f00162848a3cebc0728d915763c2fd9e92132408',
@@ -321,8 +327,10 @@ const commitDataEmpty = {
   },
   parent: {
     commitid: 'd773f5bc170caec7f6e64420b0967e7bac978a8f',
-    totals: {
-      coverage: 38.30846,
+    coverageAnalytics: {
+      totals: {
+        coverage: 38.30846,
+      },
     },
   },
 }

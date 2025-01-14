@@ -2,8 +2,8 @@ import { render, screen } from 'custom-testing-library'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import PropTypes from 'prop-types'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -72,10 +72,10 @@ describe('YAMLTab', () => {
     useIsCurrentUserAnAdmin.mockReturnValue(true)
 
     server.use(
-      graphql.query('YamlConfig', (info) => {
+      graphql.query('YamlConfig', () => {
         return HttpResponse.json({ data: dataReturned.YamlConfig })
       }),
-      graphql.mutation('UpdateYamlConfig', (info) => {
+      graphql.mutation('UpdateYamlConfig', () => {
         return HttpResponse.json(dataReturned.UpdateYamlConfig)
       })
     )

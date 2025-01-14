@@ -43,8 +43,12 @@ const RepositorySchema = z.object({
   __typename: z.literal('Repository'),
   commit: z
     .object({
-      bundleAnalysisCompareWithParent:
-        BundleAnalysisCompareWithParentSchema.nullable(),
+      bundleAnalysis: z
+        .object({
+          bundleAnalysisCompareWithParent:
+            BundleAnalysisCompareWithParentSchema.nullable(),
+        })
+        .nullable(),
     })
     .nullable(),
 })
@@ -72,32 +76,34 @@ query CommitBADropdownSummary(
       __typename
       ... on Repository {
         commit(id: $commitid) {
-          bundleAnalysisCompareWithParent {
-            __typename
-            ... on BundleAnalysisComparison {
-              bundleChange {
-                loadTime {
-                  threeG
-                }
-                size {
-                  uncompress
+          bundleAnalysis {
+            bundleAnalysisCompareWithParent {
+              __typename
+              ... on BundleAnalysisComparison {
+                bundleChange {
+                  loadTime {
+                    threeG
+                  }
+                  size {
+                    uncompress
+                  }
                 }
               }
-            }
-            ... on FirstPullRequest {
-              message
-            }
-            ... on MissingBaseCommit {
-              message
-            }
-            ... on MissingHeadCommit {
-              message
-            }
-            ... on MissingBaseReport {
-              message
-            }
-            ... on MissingHeadReport {
-              message
+              ... on FirstPullRequest {
+                message
+              }
+              ... on MissingBaseCommit {
+                message
+              }
+              ... on MissingHeadCommit {
+                message
+              }
+              ... on MissingBaseReport {
+                message
+              }
+              ... on MissingHeadReport {
+                message
+              }
             }
           }
         }
@@ -165,7 +171,7 @@ export function useCommitBADropdownSummary({
               detail: (
                 <p>
                   Activation is required to view this repo, please{' '}
-                  {/* @ts-expect-error */}
+                  {/* @ts-expect-error - A hasn't been typed yet */}
                   <A to={{ pageName: 'membersTab' }}>click here </A> to activate
                   your account.
                 </p>

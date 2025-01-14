@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 
@@ -43,33 +43,35 @@ const mockedComponentMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      components: [
-        {
-          componentId: 'components1_id',
-          name: 'components1',
-          percentCovered: 93.26,
-          percentChange: -1.56,
-          lastUploaded: '2021-09-30T00:00:00Z',
-          measurements: [{ avg: 51.78 }, { avg: 93.356 }],
-        },
-        {
-          componentId: 'components2_id',
-          name: 'component2',
-          percentCovered: 91.74,
-          percentChange: null,
-          lastUploaded: null,
-          measurements: [{ avg: null }, { avg: null }],
-        },
+      coverageAnalytics: {
+        components: [
+          {
+            componentId: 'components1_id',
+            name: 'components1',
+            percentCovered: 93.26,
+            percentChange: -1.56,
+            lastUploaded: '2021-09-30T00:00:00Z',
+            measurements: [{ avg: 51.78 }, { avg: 93.356 }],
+          },
+          {
+            componentId: 'components2_id',
+            name: 'component2',
+            percentCovered: 91.74,
+            percentChange: null,
+            lastUploaded: null,
+            measurements: [{ avg: null }, { avg: null }],
+          },
 
-        {
-          componentId: 'testtest_id',
-          name: 'testtest',
-          percentCovered: 1.0,
-          percentChange: 1.0,
-          lastUploaded: null,
-          measurements: [{ avg: 51.78 }, { avg: 93.356 }],
-        },
-      ],
+          {
+            componentId: 'testtest_id',
+            name: 'testtest',
+            percentCovered: 1.0,
+            percentChange: 1.0,
+            lastUploaded: null,
+            measurements: [{ avg: 51.78 }, { avg: 93.356 }],
+          },
+        ],
+      },
     },
   },
 }
@@ -78,16 +80,18 @@ const mockNoReportsUploadedMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      components: [
-        {
-          name: 'components1',
-          componentId: 'components1_id',
-          percentCovered: null,
-          percentChange: null,
-          lastUploaded: null,
-          measurements: [],
-        },
-      ],
+      coverageAnalytics: {
+        components: [
+          {
+            name: 'components1',
+            componentId: 'components1_id',
+            percentCovered: null,
+            percentChange: null,
+            lastUploaded: null,
+            measurements: [],
+          },
+        ],
+      },
     },
   },
 }
@@ -96,7 +100,9 @@ const mockEmptyComponentMeasurements = {
   owner: {
     repository: {
       __typename: 'Repository',
-      components: [],
+      coverageAnalytics: {
+        components: [],
+      },
     },
   },
 }
@@ -151,7 +157,7 @@ describe('ComponentsTable', () => {
     const fetchNextPage = vi.fn()
 
     server.use(
-      graphql.query('ComponentMeasurements', (info) => {
+      graphql.query('ComponentMeasurements', () => {
         if (noData) {
           return HttpResponse.json({ data: mockEmptyComponentMeasurements })
         }
@@ -164,10 +170,10 @@ describe('ComponentsTable', () => {
 
         return HttpResponse.json({ data: mockedComponentMeasurements })
       }),
-      graphql.query('GetRepo', (info) => {
+      graphql.query('GetRepo', () => {
         return HttpResponse.json({ data: mockGetRepo })
       }),
-      graphql.query('RepoConfig', (info) => {
+      graphql.query('RepoConfig', () => {
         return HttpResponse.json({ data: mockRepoConfig })
       })
     )

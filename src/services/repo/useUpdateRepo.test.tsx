@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { useUpdateRepo } from './index'
@@ -69,7 +69,7 @@ const repoDetails = {
 describe('useUpdateRepo', () => {
   function setup() {
     server.use(
-      http.patch(`internal/github/codecov/repos/test/`, (info) => {
+      http.patch(`internal/github/codecov/repos/test/`, () => {
         return HttpResponse.json(repoDetails)
       })
     )
@@ -83,8 +83,8 @@ describe('useUpdateRepo', () => {
           wrapper: wrapper(),
         })
 
-        // @ts-expect-error
-        result.current.mutate({})
+        // @ts-expect-error - mutation hasn't been typed yet
+        result.current.mutate({ activated: true })
 
         await waitFor(() => expect(result.current.isSuccess).toBeTruthy())
       })

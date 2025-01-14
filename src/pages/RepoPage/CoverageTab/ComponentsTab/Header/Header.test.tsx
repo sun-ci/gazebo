@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import Header from './Header'
@@ -11,7 +11,7 @@ vi.mock('./BranchSelector', () => ({ default: () => 'BranchSelector' }))
 
 const server = setupServer()
 const queryClient = new QueryClient()
-let testLocation = {
+const testLocation = {
   pathname: '',
 }
 
@@ -53,9 +53,11 @@ const backfillData = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsMeasurementsActive: true,
-      componentsMeasurementsBackfilled: true,
-      componentsCount: 99,
+      coverageAnalytics: {
+        componentsMeasurementsActive: true,
+        componentsMeasurementsBackfilled: true,
+        componentsCount: 99,
+      },
     },
   },
 }
@@ -64,16 +66,18 @@ const mockResponse = {
   owner: {
     repository: {
       __typename: 'Repository',
-      componentsYaml: [
-        {
-          id: 'component1',
-          name: 'Component 1',
-        },
-        {
-          id: 'component2',
-          name: 'Component 2',
-        },
-      ],
+      coverageAnalytics: {
+        componentsYaml: [
+          {
+            id: 'component1',
+            name: 'Component 1',
+          },
+          {
+            id: 'component2',
+            name: 'Component 2',
+          },
+        ],
+      },
     },
   },
 }
@@ -88,7 +92,7 @@ describe('Header', () => {
     const mockApiVars = vi.fn()
 
     server.use(
-      graphql.query('BackfillComponentMemberships', (info) => {
+      graphql.query('BackfillComponentMemberships', () => {
         return HttpResponse.json({ data: backfillData })
       }),
       graphql.query('RepoComponentsSelector', (info) => {

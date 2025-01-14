@@ -7,8 +7,8 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Location } from 'history'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import ComponentsMultiSelect from './ComponentsMultiSelect'
@@ -21,7 +21,9 @@ const mockComponentsResponse = (components: Array<{ name: string }>) => ({
         name: 'main',
         head: {
           commitid: 'commit-123',
-          components,
+          coverageAnalytics: {
+            components,
+          },
         },
       },
     },
@@ -93,10 +95,12 @@ const mockRepoCoverage = {
     name: 'main',
     head: {
       yamlState: 'DEFAULT',
-      totals: {
-        percentCovered: 95.0,
-        lineCount: 100,
-        hitsCount: 100,
+      coverageAnalytics: {
+        totals: {
+          percentCovered: 95.0,
+          lineCount: 100,
+          hitsCount: 100,
+        },
       },
     },
   },
@@ -154,7 +158,7 @@ describe('ComponentsMultiSelect', () => {
 
         return HttpResponse.json({ data: mockComponentsResponse(components) })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({
           data: {
             owner: {
@@ -164,17 +168,17 @@ describe('ComponentsMultiSelect', () => {
           },
         })
       }),
-      graphql.query('GetBranch', (info) => {
+      graphql.query('GetBranch', () => {
         return HttpResponse.json({
           data: {
             owner: { repository: { __typename: 'Repository', ...mockBranch } },
           },
         })
       }),
-      graphql.query('GetBranches', (info) => {
+      graphql.query('GetBranches', () => {
         return HttpResponse.json({ data: branchesMock })
       }),
-      graphql.query('GetRepoCoverage', (info) => {
+      graphql.query('GetRepoCoverage', () => {
         return HttpResponse.json({
           data: { owner: { repository: mockRepoCoverage } },
         })

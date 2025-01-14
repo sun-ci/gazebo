@@ -1,4 +1,5 @@
 /* eslint-disable camelcase */
+import * as Sentry from '@sentry/react'
 import qs from 'qs'
 
 import config from 'config'
@@ -11,6 +12,30 @@ export interface NetworkErrorObject {
     detail?: React.ReactNode
   }
   dev: `${string} - ${number} ${string}`
+  error?: Error
+}
+
+export function rejectNetworkError(error: NetworkErrorObject) {
+  // only capture network errors if they are not a rate limit error
+  // this will typically only be schema parsing errors
+  if (error.status !== 429 && error.dev && error.error) {
+    Sentry.withScope((scope) => {
+      scope.addBreadcrumb({
+        category: 'network.error',
+        level: 'error',
+        message: error.dev,
+        data: error.error,
+      })
+      scope.setFingerprint([error.dev])
+      scope.captureMessage('Network Error')
+    })
+  }
+
+  return Promise.reject({
+    status: error.status,
+    dev: error.dev,
+    data: error.data,
+  })
 }
 
 export const AllProvidersArray = [
@@ -28,7 +53,7 @@ export const AllProvidersArray = [
   'bitbucket_server',
 ] as const
 type AllProviders = typeof AllProvidersArray
-type Provider = AllProviders[number]
+export type Provider = AllProviders[number]
 
 export const ProviderCookieKeyMapping = {
   gh: 'github-token',

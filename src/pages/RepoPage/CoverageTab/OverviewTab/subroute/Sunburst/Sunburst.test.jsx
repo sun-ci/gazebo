@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, http, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
-import Sunburst from './Sunburst'
+import Sunburst, { getPathsToDisplay } from './Sunburst'
 
 vi.mock('ui/SunburstChart', () => ({ default: () => 'Chart Mocked' }))
 
@@ -70,13 +70,13 @@ describe('Sunburst', () => {
     coverageTreeStatus = 200,
   }) {
     server.use(
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: repoOverviewData })
       }),
-      graphql.query('RepoConfig', (info) => {
+      graphql.query('RepoConfig', () => {
         return HttpResponse.json({ data: repoConfigMock })
       }),
-      http.get('/internal/:provider/:owner/:repo/coverage/tree', (info) => {
+      http.get('/internal/:provider/:owner/:repo/coverage/tree', () => {
         return HttpResponse.json(
           { data: coverageTreeRes },
           { status: coverageTreeStatus }
@@ -122,6 +122,25 @@ describe('Sunburst', () => {
       )
 
       expect(chart).toBeInTheDocument()
+    })
+  })
+
+  describe('getPathsToDisplay', () => {
+    it('handles one segment', () => {
+      const breadcrumbPaths = [{ text: 'root' }]
+
+      const pathsToDisplay = getPathsToDisplay(breadcrumbPaths)
+      expect(pathsToDisplay).toEqual([{ text: 'root' }])
+    })
+    it('handles multiple segments', () => {
+      const breadcrumbPaths = [
+        { text: 'file' },
+        { text: 'folder' },
+        { text: 'root' },
+      ]
+
+      const pathsToDisplay = getPathsToDisplay(breadcrumbPaths)
+      expect(pathsToDisplay).toEqual([{ text: 'file' }, { text: '...' }])
     })
   })
 })

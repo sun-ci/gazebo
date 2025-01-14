@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, Route } from 'react-router-dom'
 
 import { TierNames } from 'services/tier'
@@ -41,12 +45,16 @@ const mockCommits = {
                 username: 'user-1',
                 avatarUrl: 'http://127.0.0.1/avatar-url',
               },
-              totals: {
-                coverage: 100,
-              },
-              parent: {
+              coverageAnalytics: {
                 totals: {
                   coverage: 100,
+                },
+              },
+              parent: {
+                coverageAnalytics: {
+                  totals: {
+                    coverage: 100,
+                  },
                 },
               },
               compareWithParent: {
@@ -55,8 +63,10 @@ const mockCommits = {
                   percentCovered: 100,
                 },
               },
-              bundleAnalysisReport: {
-                __typename: 'BundleAnalysisReport',
+              bundleAnalysis: {
+                bundleAnalysisReport: {
+                  __typename: 'BundleAnalysisReport',
+                },
               },
             },
           },
@@ -83,8 +93,11 @@ const mockPullData = {
         },
         head: {
           commitid: '123',
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              isCached: false,
+            },
           },
         },
         compareWithBase: {
@@ -130,35 +143,42 @@ const mockBackfillResponse = {
   },
   owner: {
     repository: {
-      flagsMeasurementsActive: true,
-      flagsMeasurementsBackfilled: true,
-      flagsCount: 4,
+      coverageAnalytics: {
+        flagsMeasurementsActive: true,
+        flagsMeasurementsBackfilled: true,
+        flagsCount: 4,
+      },
     },
   },
 }
 
+const server = setupServer()
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
-const server = setupServer()
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
+})
 
 const wrapper =
   (initialEntries = '/gh/codecov/test-repo/pull/1') =>
   ({ children }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntries]}>
-        <Route
-          path={[
-            '/:provider/:owner/:repo/pull/:pullId',
-            '/:provider/:owner/:repo/pull/:pullId/tree',
-            '/:provider/:owner/:repo/pull/:pullId/tree/:path+',
-            '/:provider/:owner/:repo/pull/:pullId/blob/:path+',
-          ]}
-        >
-          {children}
-        </Route>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <QueryClientProviderV5 client={queryClientV5}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialEntries]}>
+          <Route
+            path={[
+              '/:provider/:owner/:repo/pull/:pullId',
+              '/:provider/:owner/:repo/pull/:pullId/tree',
+              '/:provider/:owner/:repo/pull/:pullId/tree/:path+',
+              '/:provider/:owner/:repo/pull/:pullId/blob/:path+',
+            ]}
+          >
+            {children}
+          </Route>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </QueryClientProviderV5>
   )
 
 beforeAll(() => {
@@ -166,6 +186,7 @@ beforeAll(() => {
 })
 afterEach(() => {
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 afterAll(() => {
@@ -180,29 +201,29 @@ describe('PullCoverageTabs', () => {
     }
   ) {
     server.use(
-      graphql.query('PullPageData', (info) => {
+      graphql.query('PullPageData', () => {
         return HttpResponse.json({ data: mockPullData })
       }),
-      graphql.query('GetCommits', (info) => {
+      graphql.query('GetCommits', () => {
         return HttpResponse.json({ data: mockCommits })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({
           data: {
             owner: { plan: { tierName: tierValue.toLowerCase() } },
           },
         })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockOverview(privateRepo) })
       }),
-      graphql.query('FlagsSelect', (info) => {
+      graphql.query('FlagsSelect', () => {
         return HttpResponse.json({ data: mockFlagsResponse })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockBackfillResponse })
       }),
-      graphql.query('PullFlagsSelect', (info) => {
+      graphql.query('PullFlagsSelect', () => {
         const dataReturned = {
           owner: {
             repository: {

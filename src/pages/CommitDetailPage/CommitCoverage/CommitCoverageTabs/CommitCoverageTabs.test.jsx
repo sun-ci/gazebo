@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import qs from 'qs'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
@@ -32,17 +32,19 @@ const mockFlagsResponse = {
   owner: {
     repository: {
       __typename: 'Repository',
-      flags: {
-        edges: [
-          {
-            node: {
-              name: 'flag-1',
+      coverageAnalytics: {
+        flags: {
+          edges: [
+            {
+              node: {
+                name: 'flag-1',
+              },
             },
+          ],
+          pageInfo: {
+            hasNextPage: true,
+            endCursor: '1-flag-1',
           },
-        ],
-        pageInfo: {
-          hasNextPage: true,
-          endCursor: '1-flag-1',
         },
       },
     },
@@ -55,9 +57,11 @@ const mockBackfillResponse = {
   },
   owner: {
     repository: {
-      flagsMeasurementsActive: true,
-      flagsMeasurementsBackfilled: true,
-      flagsCount: 4,
+      coverageAnalytics: {
+        flagsMeasurementsActive: true,
+        flagsMeasurementsBackfilled: true,
+        flagsCount: 4,
+      },
     },
   },
 }
@@ -107,25 +111,24 @@ afterAll(() => {
 
 describe('CommitCoverageTabs', () => {
   function setup(
-    { flagValue = false, tierValue = TierNames.PRO, isPrivate = false } = {
-      flagValue: false,
+    { tierValue = TierNames.PRO, isPrivate = false } = {
       tierValue: TierNames.PRO,
       isPrivate: false,
     }
   ) {
     server.use(
-      graphql.query('FlagsSelect', (info) => {
+      graphql.query('FlagsSelect', () => {
         return HttpResponse.json({ data: mockFlagsResponse })
       }),
-      graphql.query('BackfillFlagMemberships', (info) => {
+      graphql.query('BackfillFlagMemberships', () => {
         return HttpResponse.json({ data: mockBackfillResponse })
       }),
-      graphql.query('OwnerTier', (info) => {
+      graphql.query('OwnerTier', () => {
         return HttpResponse.json({
           data: { owner: { plan: { tierName: tierValue } } },
         })
       }),
-      graphql.query('GetRepoSettingsTeam', (info) => {
+      graphql.query('GetRepoSettingsTeam', () => {
         return HttpResponse.json({ data: mockRepoSettings(isPrivate) })
       })
     )

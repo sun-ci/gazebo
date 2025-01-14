@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { useAddNotification } from 'services/toastNotification'
 
@@ -60,7 +60,18 @@ describe('NameEmailCard', () => {
               updateProfile: {
                 me: {
                   email: json.variables.input.email || '',
-                  user: { name: json.variables.input.name || '' },
+                  privateAccess: null,
+                  onboardingCompleted: true,
+                  businessEmail: null,
+                  user: {
+                    name: json.variables.input.name || '',
+                    username: 'test',
+                    avatarUrl: 'http://127.0.0.1/avatar-url',
+                    avatar: 'http://127.0.0.1/avatar-url',
+                    student: false,
+                    studentCreatedAt: null,
+                    studentUpdatedAt: null,
+                  },
                 },
               },
             },

@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -137,7 +137,7 @@ describe('PullBundleComparisonTable', () => {
   ) {
     const user = userEvent.setup()
     server.use(
-      graphql.query('PullBundleComparisonList', (info) => {
+      graphql.query('PullBundleComparisonList', () => {
         if (isEmptyList) {
           return HttpResponse.json({ data: mockEmptyPullBundleListData })
         } else if (nonComparisonType) {
@@ -246,13 +246,12 @@ describe('PullBundleComparisonTable', () => {
 
 describe('useTableData', () => {
   function setup(
-    { isEmptyList = false, nonComparisonType = false }: SetupArgs = {
-      isEmptyList: false,
+    { nonComparisonType = false }: SetupArgs = {
       nonComparisonType: false,
     }
   ) {
     server.use(
-      graphql.query('PullBundleComparisonList', (info) => {
+      graphql.query('PullBundleComparisonList', () => {
         if (nonComparisonType) {
           return HttpResponse.json({ data: mockNonComparisonTypeData })
         } else {

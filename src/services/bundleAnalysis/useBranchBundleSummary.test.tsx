@@ -1,10 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+  useQuery as useQueryV5,
+} from '@tanstack/react-queryV5'
 import { renderHook, waitFor } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { Suspense } from 'react'
 import { type MockInstance } from 'vitest'
 
-import { useBranchBundleSummary } from './useBranchBundleSummary'
+import {
+  BranchBundleSummaryQueryOpts,
+  useBranchBundleSummary,
+} from './useBranchBundleSummary'
 
 const mockRepoOverview = {
   owner: {
@@ -29,21 +38,23 @@ const mockBranchBundleSummary = {
       branch: {
         head: {
           commitid: '543a5268dce725d85be7747c0f9b61e9a68dea57',
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundleData: {
-              loadTime: { threeG: 200 },
-              size: { uncompress: 100 },
-            },
-            bundles: [
-              {
-                name: 'bundle1',
-                bundleData: {
-                  loadTime: { threeG: 100 },
-                  size: { uncompress: 50 },
-                },
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundleData: {
+                loadTime: { threeG: 200 },
+                size: { uncompress: 100 },
               },
-            ],
+              bundles: [
+                {
+                  name: 'bundle1',
+                  bundleData: {
+                    loadTime: { threeG: 100 },
+                    size: { uncompress: 50 },
+                  },
+                },
+              ],
+            },
           },
         },
       },
@@ -75,15 +86,18 @@ const mockOwnerNotActivated = {
 
 const server = setupServer()
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
+  defaultOptions: { queries: { retry: false, suspense: true } },
+})
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
 })
 
 const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  <QueryClientProviderV5 client={queryClientV5}>
+    <QueryClientProvider client={queryClient}>
+      <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
+    </QueryClientProvider>
+  </QueryClientProviderV5>
 )
 
 beforeAll(() => {
@@ -93,6 +107,7 @@ beforeAll(() => {
 afterEach(() => {
   vi.resetAllMocks()
   queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 
@@ -134,7 +149,7 @@ describe('useBranchBundleSummary', () => {
 
         return HttpResponse.json({ data: mockBranchBundleSummary })
       }),
-      graphql.query('GetRepoOverview', (info) => {
+      graphql.query('GetRepoOverview', () => {
         return HttpResponse.json({ data: mockRepoOverview })
       })
     )
@@ -199,21 +214,23 @@ describe('useBranchBundleSummary', () => {
           branch: {
             head: {
               commitid: '543a5268dce725d85be7747c0f9b61e9a68dea57',
-              bundleAnalysisReport: {
-                __typename: 'BundleAnalysisReport',
-                bundleData: {
-                  loadTime: { threeG: 200 },
-                  size: { uncompress: 100 },
-                },
-                bundles: [
-                  {
-                    name: 'bundle1',
-                    bundleData: {
-                      loadTime: { threeG: 100 },
-                      size: { uncompress: 50 },
-                    },
+              bundleAnalysis: {
+                bundleAnalysisReport: {
+                  __typename: 'BundleAnalysisReport',
+                  bundleData: {
+                    loadTime: { threeG: 200 },
+                    size: { uncompress: 100 },
                   },
-                ],
+                  bundles: [
+                    {
+                      name: 'bundle1',
+                      bundleData: {
+                        loadTime: { threeG: 100 },
+                        size: { uncompress: 50 },
+                      },
+                    },
+                  ],
+                },
               },
             },
           },
@@ -264,11 +281,14 @@ describe('useBranchBundleSummary', () => {
       setup({ isNotFoundError: true })
       const { result } = renderHook(
         () =>
-          useBranchBundleSummary({
-            provider: 'gh',
-            owner: 'codecov',
-            repo: 'codecov',
-          }),
+          useQueryV5(
+            BranchBundleSummaryQueryOpts({
+              provider: 'gh',
+              owner: 'codecov',
+              repo: 'codecov',
+              branch: 'main',
+            })
+          ),
         { wrapper }
       )
 
@@ -298,11 +318,14 @@ describe('useBranchBundleSummary', () => {
       setup({ isOwnerNotActivatedError: true })
       const { result } = renderHook(
         () =>
-          useBranchBundleSummary({
-            provider: 'gh',
-            owner: 'codecov',
-            repo: 'codecov',
-          }),
+          useQueryV5(
+            BranchBundleSummaryQueryOpts({
+              provider: 'gh',
+              owner: 'codecov',
+              repo: 'codecov',
+              branch: 'main',
+            })
+          ),
         { wrapper }
       )
 
@@ -332,11 +355,14 @@ describe('useBranchBundleSummary', () => {
       setup({ isUnsuccessfulParseError: true })
       const { result } = renderHook(
         () =>
-          useBranchBundleSummary({
-            provider: 'gh',
-            owner: 'codecov',
-            repo: 'codecov',
-          }),
+          useQueryV5(
+            BranchBundleSummaryQueryOpts({
+              provider: 'gh',
+              owner: 'codecov',
+              repo: 'codecov',
+              branch: 'main',
+            })
+          ),
         { wrapper }
       )
 

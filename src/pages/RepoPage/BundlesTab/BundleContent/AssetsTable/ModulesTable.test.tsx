@@ -1,7 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClientProvider as QueryClientProviderV5,
+  QueryClient as QueryClientV5,
+} from '@tanstack/react-queryV5'
 import { render, screen } from '@testing-library/react'
-import { graphql, HttpResponse } from 'msw2'
-import { setupServer } from 'msw2/node'
+import { graphql, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
@@ -13,26 +16,28 @@ const mockBundleAssetModules = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'BundleAnalysisReport',
-            bundle: {
-              asset: {
-                modules: [
-                  {
-                    name: 'module1',
-                    extension: 'js',
-                    bundleData: {
-                      loadTime: {
-                        threeG: 100,
-                        highSpeed: 200,
-                      },
-                      size: {
-                        gzip: 50,
-                        uncompress: 100,
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'BundleAnalysisReport',
+              bundle: {
+                asset: {
+                  modules: [
+                    {
+                      name: 'module1',
+                      extension: 'js',
+                      bundleData: {
+                        loadTime: {
+                          threeG: 100,
+                          highSpeed: 200,
+                        },
+                        size: {
+                          gzip: 50,
+                          uncompress: 100,
+                        },
                       },
                     },
-                  },
-                ],
+                  ],
+                },
               },
             },
           },
@@ -48,9 +53,11 @@ const mockMissingHeadReport = {
       __typename: 'Repository',
       branch: {
         head: {
-          bundleAnalysisReport: {
-            __typename: 'MissingHeadReport',
-            message: 'Missing head report',
+          bundleAnalysis: {
+            bundleAnalysisReport: {
+              __typename: 'MissingHeadReport',
+              message: 'Missing head report',
+            },
           },
         },
       },
@@ -59,17 +66,12 @@ const mockMissingHeadReport = {
 }
 
 const server = setupServer()
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      suspense: true,
-    },
-  },
+const queryClientV5 = new QueryClientV5({
+  defaultOptions: { queries: { retry: false } },
 })
 
 const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>
+  <QueryClientProviderV5 client={queryClientV5}>
     <MemoryRouter
       initialEntries={['/gh/codecov/test-repo/bundles/test-branch/test-bundle']}
     >
@@ -77,7 +79,7 @@ const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
         <Suspense fallback={<p>Loading</p>}>{children}</Suspense>
       </Route>
     </MemoryRouter>
-  </QueryClientProvider>
+  </QueryClientProviderV5>
 )
 
 beforeAll(() => {
@@ -85,7 +87,7 @@ beforeAll(() => {
 })
 
 afterEach(() => {
-  queryClient.clear()
+  queryClientV5.clear()
   server.resetHandlers()
 })
 
@@ -100,7 +102,7 @@ interface SetupArgs {
 describe('ModulesTable', () => {
   function setup({ noAssets = false }: SetupArgs) {
     server.use(
-      graphql.query('BundleAssetModules', (info) => {
+      graphql.query('BundleAssetModules', () => {
         if (noAssets) {
           return HttpResponse.json({ data: mockMissingHeadReport })
         }

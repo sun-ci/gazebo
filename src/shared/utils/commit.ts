@@ -1,10 +1,12 @@
 export const UploadStateEnum = {
-  error: 'ERROR',
   uploaded: 'UPLOADED',
-  processed: 'PROCESSED',
-  complete: 'COMPLETE',
   started: 'STARTED',
+  complete: 'COMPLETE',
+  error: 'ERROR',
+  processed: 'PROCESSED',
 } as const
+
+export const UploadErrorStates = Object.values(UploadStateEnum)
 
 export const CommitStateEnum = {
   ERROR: 'error',
@@ -17,6 +19,7 @@ export const ErrorCodeEnum = {
   fileNotFoundInStorage: 'FILE_NOT_IN_STORAGE',
   reportExpired: 'REPORT_EXPIRED',
   reportEmpty: 'REPORT_EMPTY',
+  processingTimeout: 'PROCESSING_TIMEOUT',
 
   unknownProcessing: 'UNKNOWN_PROCESSING',
   unknownStorage: 'UNKNOWN_STORAGE',
