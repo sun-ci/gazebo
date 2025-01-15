@@ -1,7 +1,7 @@
 sha := $(shell git rev-parse --short=7 HEAD)
-release_version := '24.10.1'
+release_version := '25.1.10'
 build_date ?= $(shell git show -s --date=iso8601-strict --pretty=format:%cd $$sha)
-dockerhub_image := sunci/self-hosted-frontend
+dockerhub_image := harbor.sun-asterisk.vn/sun-devops/athena/self-hosted-frontend
 ENV ?= ENTERPRISE
 export DOCKER_BUILDKIT := 1
 
