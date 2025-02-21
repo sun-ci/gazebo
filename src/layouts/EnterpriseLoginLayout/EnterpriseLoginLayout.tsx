@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { useLocation } from 'react-router-dom'
 
 import Footer from 'layouts/Footer'
-import GuestHeader from 'layouts/Header/components/GuestHeader'
+// import GuestHeader from 'layouts/Header/components/GuestHeader'
 import ErrorBoundary from 'layouts/shared/ErrorBoundary'
 import NetworkErrorBoundary from 'layouts/shared/NetworkErrorBoundary'
 import ToastNotifications from 'layouts/ToastNotifications'
@@ -21,7 +21,7 @@ function EnterpriseLoginLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <GuestHeader />
+      {/* <GuestHeader /> */}
       {location.search.includes('expired') && <SessionExpiredBanner />}
       <Suspense fallback={<FullPageLoader />}>
         <ErrorBoundary sentryScopes={[['layout', 'base']]}>

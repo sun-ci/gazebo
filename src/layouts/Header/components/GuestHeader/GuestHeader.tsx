@@ -19,7 +19,7 @@ const LogoButton = () => {
       hook="desktop-menu-homepage-link"
     >
       <span className="sr-only">Link to Homepage</span>
-      <CodecovIcon fillColor="#F01F7A" />
+      <CodecovIcon />
     </A>
   )
 }

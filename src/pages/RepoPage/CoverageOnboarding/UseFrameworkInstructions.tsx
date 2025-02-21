@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 
+import config from 'config'
+
 export type Framework = 'Jest' | 'Vitest' | 'Pytest' | 'Go'
 export type FrameworkInstructions = ReturnType<typeof UseFrameworkInstructions>
 
@@ -21,7 +23,7 @@ export function UseFrameworkInstructions({
         run: 'npx jest --coverage',
         githubActionsWorkflow: `name: Run tests and upload coverage
 
-on: 
+on:
   push
 
 jobs:
@@ -44,8 +46,10 @@ jobs:
         run: npx jest --coverage
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v3
         with:
+          # add CODECOV_URL=${config.API_URL} to repository secrets
+          url: \${{ secrets.CODECOV_URL }}
           token: \${{ secrets.CODECOV_TOKEN }}${
             orgUploadToken
               ? `
@@ -59,7 +63,7 @@ jobs:
         run: 'npx vitest run --coverage',
         githubActionsWorkflow: `name: Run tests and upload coverage
 
-on: 
+on:
   push
 
 jobs:
@@ -82,8 +86,10 @@ jobs:
         run: npx vitest run --coverage
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v3
         with:
+          # add CODECOV_URL=${config.API_URL} to repository secrets
+          url: \${{ secrets.CODECOV_URL }}
           token: \${{ secrets.CODECOV_TOKEN }}${
             orgUploadToken
               ? `
@@ -97,7 +103,7 @@ jobs:
         run: 'pytest --cov-branch --cov-report=xml',
         githubActionsWorkflow: `name: Run tests and upload coverage
 
-on: 
+on:
   push
 
 jobs:
@@ -120,8 +126,10 @@ jobs:
         run: pytest --cov-branch --cov-report=xml
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v3
         with:
+          # add CODECOV_URL=${config.API_URL} to repository secrets
+          url: \${{ secrets.CODECOV_URL }}
           token: \${{ secrets.CODECOV_TOKEN }}${
             orgUploadToken
               ? `
@@ -135,7 +143,7 @@ jobs:
         run: 'go test -coverprofile=coverage.txt',
         githubActionsWorkflow: `name: Run tests and upload coverage
 
-on: 
+on:
   push
 
 jobs:
@@ -158,8 +166,10 @@ jobs:
         run: go test -coverprofile=coverage.txt
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v3
         with:
+          # add CODECOV_URL=${config.API_URL} to repository secrets
+          url: \${{ secrets.CODECOV_URL }}
           token: \${{ secrets.CODECOV_TOKEN }}${
             orgUploadToken
               ? `

@@ -5,20 +5,20 @@ const ExampleBlurb = () => {
     <div data-testid="example-blurb">
       &#128193; View a{' '}
       <A
-        to={{ pageName: 'codecovExampleJSCircleCIWorkflow' }}
+        to={{ pageName: 'codecovExampleJSGHAWorkflow' }}
         isExternal
         hook="codecov-workflow-intro"
       >
-        JavaScript config.yml example
+        GitHub Actions workflow example
       </A>{' '}
-      and see{' '}
+      or
       <A
-        to={{ pageName: 'codecovExampleJSCircleCIWorkflowSteps' }}
+        to={{ pageName: 'codecovExampleJSSunCIWorkflow' }}
         isExternal
-        hook="codecov-cli-intro"
+        hook="codecov-workflow-intro"
       >
-        the setup on CircleCI
-      </A>
+        .sun-ci.yml example
+      </A>{' '}
       .
     </div>
   )

@@ -301,7 +301,7 @@ describe('ContextSwitcher', () => {
       expect(installCopy).toBeInTheDocument()
       expect(installCopy).toHaveAttribute(
         'href',
-        'https://github.com/apps/codecov/installations/new'
+        'https://github.com/apps/sun-codecov-self-hosted/installations/new'
       )
     })
   })
@@ -840,7 +840,7 @@ describe('ContextSwitcher', () => {
       )
       expect(installCopy).not.toHaveAttribute(
         'href',
-        'https://github.com/apps/codecov/installations/new'
+        `https://github.com/apps/${config.GH_APP}/installations/new`
       )
     })
 

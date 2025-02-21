@@ -36,12 +36,7 @@ function HelpDropdown() {
     },
     {
       to: { pageName: 'support' },
-      children: 'Support center',
-    },
-    {
-      onClick: isFormSuccess ? form.open : () => {},
-      hook: 'open-modal',
-      children: 'Share feedback',
+      children: 'Slack Channel',
     },
     {
       to: { pageName: 'feedback' },

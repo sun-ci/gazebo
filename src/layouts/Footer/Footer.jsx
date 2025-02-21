@@ -24,8 +24,8 @@ function Footer() {
             <FooterItem key={`footer-left-${i}`} {...props} />
           ))}
         </ul>
-        <A to={{ pageName: 'owner' }} hook={undefined} isExternal={false}>
-          <CodecovIcon />
+        <A to={{ pageName: 'owner' }}>
+          <CodecovIcon className="mr-2 cursor-pointer" />
         </A>
         <ul className="flex flex-1 items-center justify-center gap-4 lg:justify-end">
           {rightMenu.map((props, i) => (

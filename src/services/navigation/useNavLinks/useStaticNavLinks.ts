@@ -157,7 +157,8 @@ export function useStaticNavLinks() {
     },
     support: {
       text: 'Support',
-      path: () => 'https://codecovpro.zendesk.com/hc/en-us',
+      path: () =>
+        'https://sun-asterisk.enterprise.slack.com/archives/C083TUY14AG', // Slack channel: con_sun-devops-platform-support-all
       isExternalLink: true,
       openNewTab: true,
     },
@@ -404,6 +405,20 @@ export function useStaticNavLinks() {
     quickStart: {
       text: 'Quick Start',
       path: () => 'https://docs.codecov.com/docs/quick-start',
+      isExternalLink: true,
+      openNewTab: true,
+    },
+    codecovExampleJSSunCIWorkflow: {
+      text: 'Example SunCI JS workflow',
+      path: () =>
+        'https://github.com/sun-ci/codecov-example-ci/blob/master/.sun-ci.yml',
+      isExternalLink: true,
+      openNewTab: true,
+    },
+    codecovExampleJSGHAWorkflow: {
+      text: 'Example GitHub Actions JS workflow',
+      path: () =>
+        'https://github.com/sun-ci/codecov-example-ci/blob/master/.github/workflows/actions.yml',
       isExternalLink: true,
       openNewTab: true,
     },
