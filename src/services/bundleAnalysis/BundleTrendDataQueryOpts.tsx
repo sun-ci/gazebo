@@ -2,13 +2,11 @@ import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
 // import { BUNDLE_LOAD_TYPE_ITEMS } from 'pages/RepoPage/BundlesTab/BundleContent/constants'
-import { MissingHeadReportSchema } from 'services/comparison'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { MissingHeadReportSchema } from 'services/comparison/schemas/MissingHeadReport'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 export const BUNDLE_TREND_INTERVALS = [
@@ -53,10 +51,12 @@ const BranchSchema = z.object({
     .object({
       bundleAnalysis: z
         .object({
-          bundleAnalysisReport: z.discriminatedUnion('__typename', [
-            BundleReportSchema,
-            MissingHeadReportSchema,
-          ]),
+          bundleAnalysisReport: z
+            .discriminatedUnion('__typename', [
+              BundleReportSchema,
+              MissingHeadReportSchema,
+            ])
+            .nullable(),
         })
         .nullable(),
     })
@@ -190,14 +190,13 @@ export const BundleTrendDataQueryOpts = ({
           filters,
         },
       }).then((res) => {
+        const callingFn = 'BundleTrendDataQueryOpts'
         const parsedData = RequestSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'BundleTrendDataQueryOpts - 404 Failed to parse schema',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -205,15 +204,15 @@ export const BundleTrendDataQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'BundleTrendDataQueryOpts - 404 Not found error',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -224,7 +223,6 @@ export const BundleTrendDataQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'BundleTrendDataQueryOpts - 403 Owner not activated',
           })
         }
 
@@ -232,7 +230,10 @@ export const BundleTrendDataQueryOpts = ({
           data.owner?.repository?.branch?.head?.bundleAnalysis
             ?.bundleAnalysisReport
 
-        if (bundleReport?.__typename === 'BundleAnalysisReport') {
+        if (
+          bundleReport &&
+          bundleReport?.__typename === 'BundleAnalysisReport'
+        ) {
           return bundleReport?.bundle?.measurements
         }
 

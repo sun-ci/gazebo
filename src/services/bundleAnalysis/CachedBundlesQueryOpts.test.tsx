@@ -22,7 +22,7 @@ const mockBranchBundles = {
           bundleAnalysis: {
             bundleAnalysisReport: {
               __typename: 'BundleAnalysisReport',
-              bundles: [{ name: 'bundle1', isCached: true }],
+              bundles: [{ name: 'bundle1', cacheConfig: true }],
             },
           },
         },
@@ -141,7 +141,7 @@ describe('CachedBundlesQueryOpts', () => {
         )
 
         const expectedResponse = {
-          bundles: [{ bundleName: 'bundle1', isCached: true }],
+          bundles: [{ bundleName: 'bundle1', cacheConfig: true }],
         }
 
         await waitFor(() =>
@@ -281,7 +281,8 @@ describe('CachedBundlesQueryOpts', () => {
       await waitFor(() =>
         expect(result.current.error).toEqual(
           expect.objectContaining({
-            status: 404,
+            dev: 'CachedBundlesQueryOpts - Parsing Error',
+            status: 400,
           })
         )
       )

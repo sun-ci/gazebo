@@ -2,7 +2,7 @@ import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 
 export const SeatsSchema = z
   .object({
@@ -34,14 +34,13 @@ export const SelfHostedSeatsConfigQueryOpts = ({
     queryKey: ['Seats', provider],
     queryFn: ({ signal }) =>
       Api.graphql({ provider, query, signal }).then((res) => {
+        const callingFn = 'SelfHostedSeatsConfigQueryOpts'
         const parsedRes = SeatsSchema.safeParse(res?.data)
 
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'SelfHostedSeatsConfigQueryOpts - 404 schema parsing failed',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 

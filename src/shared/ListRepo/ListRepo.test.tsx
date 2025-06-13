@@ -161,7 +161,7 @@ describe('ListRepo', () => {
         wrapper: wrapper({}),
       })
 
-      expect(screen.getByText(/Not Configured/)).toBeInTheDocument()
+      expect(screen.getByText(/Search/)).toBeInTheDocument()
     })
 
     it('renders the repo table', () => {
@@ -183,73 +183,6 @@ describe('ListRepo', () => {
 
       const input = screen.getByTestId('org-control-search')
       expect(input).toHaveValue('thisisaquery')
-    })
-  })
-
-  describe('switches Configured/Not Configured/All repos', () => {
-    it('switches to active repos', async () => {
-      const { user } = setup({})
-      render(<ListRepo canRefetch />, {
-        wrapper: wrapper({ url: '/gh', path: '/:provider' }),
-      })
-
-      const button = screen.getByRole('button', {
-        name: 'Configured',
-      })
-      await user.click(button)
-      expect(testLocation.state.repoDisplay).toEqual(
-        expect.stringMatching('Configured')
-      )
-    })
-
-    it('switches to Not Configured repos', async () => {
-      const { user } = setup({})
-      render(<ListRepo canRefetch />, {
-        wrapper: wrapper({ url: '/gh', path: '/:provider' }),
-      })
-
-      const button = screen.getByRole('button', {
-        name: /Not Configured/,
-      })
-      await user.click(button)
-      expect(testLocation.state.repoDisplay).toEqual(
-        expect.stringContaining('Not Configured')
-      )
-    })
-
-    it('switches to Configured repos owner page', async () => {
-      const { user } = setup({})
-      render(<ListRepo canRefetch />, {
-        wrapper: wrapper({
-          url: '/gh/hola',
-          path: '/:provider/:owner',
-        }),
-      })
-      const button = screen.getByRole('button', {
-        name: 'Configured',
-      })
-      await user.click(button)
-      expect(testLocation.state.repoDisplay).toEqual(
-        expect.stringMatching('Configured')
-      )
-    })
-
-    it('switches to all repos owner page', async () => {
-      const { user } = setup({})
-      render(<ListRepo canRefetch />, {
-        wrapper: wrapper({
-          url: '/gh/hola',
-          path: '/:provider/:owner',
-        }),
-      })
-
-      const button = screen.getByRole('button', {
-        name: /All/,
-      })
-      await user.click(button)
-      expect(testLocation.state.repoDisplay).toEqual(
-        expect.stringContaining('All')
-      )
     })
   })
 

@@ -1,12 +1,10 @@
 import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 const BranchSchema = z
@@ -96,14 +94,13 @@ export const CoverageTabDataQueryOpts = ({
           branch,
         },
       }).then((res) => {
+        const callingFn = 'CoverageTabDataQueryOpts'
         const parsedData = GetBranchSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useCoverageTabData - 404 schema parsing failed',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -111,15 +108,15 @@ export const CoverageTabDataQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useCoverageTabData - 404 NotFoundError',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -130,7 +127,6 @@ export const CoverageTabDataQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'useCoverageTabData - 403 OwnerNotActivatedError',
           })
         }
 

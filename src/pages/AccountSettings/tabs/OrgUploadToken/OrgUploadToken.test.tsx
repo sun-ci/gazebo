@@ -6,12 +6,12 @@ import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
-import { useAddNotification } from 'services/toastNotification'
+import { useAddNotification } from 'services/toastNotification/context'
 import { useFlags } from 'shared/featureFlags'
 
 import OrgUploadToken from './OrgUploadToken'
 
-vi.mock('services/toastNotification')
+vi.mock('services/toastNotification/context')
 vi.mock('shared/featureFlags')
 vi.mock('./TokenlessSection', () => ({ default: () => 'TokenlessSection' }))
 
@@ -270,7 +270,7 @@ describe('OrgUploadToken', () => {
       })
       await user.click(saveBtn)
 
-      const token = await screen.findByText('CODECOV_TOKEN=xxxxxx')
+      const token = await screen.findByText('CODECOV_TOKEN=xxxxx')
       expect(token).toBeInTheDocument()
     })
   })
@@ -296,7 +296,7 @@ describe('OrgUploadToken', () => {
 
       render(<OrgUploadToken />, { wrapper })
 
-      const token = await screen.findByText('CODECOV_TOKEN=xxxxxx')
+      const token = await screen.findByText('CODECOV_TOKEN=xxxxx')
       expect(token).toBeInTheDocument()
     })
 
@@ -315,7 +315,7 @@ describe('OrgUploadToken', () => {
       expect(hide).toBeInTheDocument()
       await user.click(hide)
 
-      const token2 = await screen.findByText('CODECOV_TOKEN=xxxxxx')
+      const token2 = await screen.findByText('CODECOV_TOKEN=xxxxx')
       expect(token2).toBeInTheDocument()
     })
   })

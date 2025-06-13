@@ -5,8 +5,8 @@ import { useHistory, useParams, useRouteMatch } from 'react-router-dom'
 
 import config from 'config'
 
-import { useUpdateDefaultOrganization } from 'services/defaultOrganization'
-import { useLocationParams } from 'services/navigation'
+import { useUpdateDefaultOrganization } from 'services/defaultOrganization/useUpdateDefaultOrganization'
+import { useLocationParams } from 'services/navigation/useLocationParams'
 import { useInternalUser, useUser } from 'services/user'
 
 const SetUpActions = Object.freeze({
@@ -59,14 +59,11 @@ const useUserAccessGate = () => {
   })
 
   useEffect(() => {
-    if (!userData?.owner?.defaultOrgUsername) {
+    // only update the default org if the user exists
+    if (userData && !userData?.owner?.defaultOrgUsername) {
       updateDefaultOrg({ username: userData?.user?.username })
     }
-  }, [
-    userData?.user?.username,
-    userData?.owner?.defaultOrgUsername,
-    updateDefaultOrg,
-  ])
+  }, [userData, updateDefaultOrg])
 
   useOnboardingRedirect({
     username: userData?.user?.username,

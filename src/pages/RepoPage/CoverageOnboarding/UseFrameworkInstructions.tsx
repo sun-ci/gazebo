@@ -34,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -74,7 +74,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -100,7 +100,7 @@ jobs:
       },
       Pytest: {
         install: 'pip install pytest pytest-cov',
-        run: 'pytest --cov-branch --cov-report=xml',
+        run: 'pytest --cov --cov-branch --cov-report=xml',
         githubActionsWorkflow: `name: Run tests and upload coverage
 
 on:
@@ -114,7 +114,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -123,7 +123,7 @@ jobs:
         run: pip install pytest pytest-cov
 
       - name: Run tests
-        run: pytest --cov-branch --cov-report=xml
+        run: pytest --cov --cov-branch --cov-report=xml
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v3
@@ -154,7 +154,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Set up Go
         uses: actions/setup-go@v5

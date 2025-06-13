@@ -14,7 +14,7 @@ import { useParams } from 'react-router'
 import { CachedBundlesQueryOpts } from 'services/bundleAnalysis/CachedBundlesQueryOpts'
 import { useUpdateBundleCache } from 'services/bundleAnalysis/useUpdateBundleCache'
 import { useRepoOverview } from 'services/repo'
-import { renderToast } from 'services/toast'
+import { renderToast } from 'services/toast/renderToast'
 import { cn } from 'shared/utils/cn'
 import { Alert } from 'ui/Alert'
 import Button from 'ui/Button'
@@ -206,7 +206,7 @@ export const ConfigureCachedBundleModal = ({
     select: (data) =>
       data.bundles.map((bundle) => ({
         bundleName: bundle.bundleName,
-        toggleCaching: bundle.isCached,
+        toggleCaching: bundle.cacheConfig,
       })),
     enabled: isOpen && !!defaultBranch,
   })

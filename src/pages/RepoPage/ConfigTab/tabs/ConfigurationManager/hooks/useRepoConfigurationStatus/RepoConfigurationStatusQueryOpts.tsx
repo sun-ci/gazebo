@@ -1,12 +1,10 @@
 import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 const RepositorySchema = z.object({
@@ -102,14 +100,13 @@ export function RepoConfigurationStatusQueryOpts({
           repo,
         },
       }).then((res) => {
+        const callingFn = 'RepoConfigurationStatusQueryOpts'
         const parsedRes = RequestSchema.safeParse(res?.data)
 
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'RepoConfigurationStatusQueryOpts - 404 Failed to parse data',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 
@@ -117,15 +114,15 @@ export function RepoConfigurationStatusQueryOpts({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'RepoConfigurationStatusQueryOpts - 404 Not found error',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -136,7 +133,6 @@ export function RepoConfigurationStatusQueryOpts({
                 </p>
               ),
             },
-            dev: 'RepoConfigurationStatusQueryOpts - 403 Owner not activated error',
           })
         }
 

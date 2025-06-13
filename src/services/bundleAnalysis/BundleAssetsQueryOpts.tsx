@@ -3,13 +3,11 @@ import { z } from 'zod'
 
 import { OrderingDirection } from 'types'
 
-import { MissingHeadReportSchema } from 'services/comparison'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { MissingHeadReportSchema } from 'services/comparison/schemas/MissingHeadReport'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import { mapEdges } from 'shared/utils/graphql'
 import A from 'ui/A'
 
@@ -278,14 +276,13 @@ export const BundleAssetsQueryOpts = ({
           orderingDirection,
         },
       }).then((res) => {
+        const callingFn = 'BundleAssetsQueryOpts'
         const parsedData = RequestSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'BundleAssetsQueryOpts - 404 schema parsing failed',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -293,15 +290,15 @@ export const BundleAssetsQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'BundleAssetsQueryOpts - 404 Repository not found',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -312,7 +309,6 @@ export const BundleAssetsQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'BundleAssetsQueryOpts - 403 Owner not activated',
           })
         }
 

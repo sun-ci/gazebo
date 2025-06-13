@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 
 import config from 'config'
 
-import { useOrgUploadToken } from 'services/orgUploadToken'
+import { useOrgUploadToken } from 'services/orgUploadToken/useOrgUploadToken'
 import { useRepo } from 'services/repo'
 import A from 'ui/A'
 import { Card } from 'ui/Card'
@@ -53,7 +53,7 @@ function OtherCI() {
       <OutputCoverageStep
         framework={framework}
         frameworkInstructions={frameworkInstruction}
-        owner={owner}
+        ciProvider="Codecov CLI"
         setFramework={setFramework}
       />
       <TokenStep tokenCopy={tokenCopy} uploadToken={uploadToken} />

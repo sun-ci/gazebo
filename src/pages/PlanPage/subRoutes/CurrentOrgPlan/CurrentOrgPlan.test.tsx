@@ -12,7 +12,7 @@ import { MemoryRouter, Route } from 'react-router-dom'
 import { z } from 'zod'
 
 import { PlanUpdatedPlanNotificationContext } from 'pages/PlanPage/context'
-import { AccountDetailsSchema } from 'services/account'
+import { AccountDetailsSchema } from 'services/account/useAccountDetails'
 import { Plans } from 'shared/utils/billing'
 import { AlertOptions, type AlertOptionsType } from 'ui/Alert'
 
@@ -214,7 +214,7 @@ describe('CurrentOrgPlan', () => {
         } as z.infer<typeof AccountDetailsSchema>,
       })
       render(<CurrentOrgPlan />, { wrapper })
-      const updatedAlert = await screen.findByText('Plan successfully updated.')
+      const updatedAlert = await screen.findByText('Plan successfully updated')
       expect(updatedAlert).toBeInTheDocument()
       expect(
         screen.getByText(/with a monthly subscription for 34 seats/)
@@ -230,7 +230,7 @@ describe('CurrentOrgPlan', () => {
       expect(currentPlanCard).toBeInTheDocument()
 
       expect(
-        screen.queryByText('Plan successfully updated.')
+        screen.queryByText('Plan successfully updated')
       ).not.toBeInTheDocument()
     })
   })
@@ -318,7 +318,9 @@ describe('CurrentOrgPlan', () => {
   describe('when plan value is not provided', () => {
     beforeEach(() => {
       setup({
-        accountDetails: { ...mockedAccountDetails },
+        accountDetails: mockedAccountDetails as z.infer<
+          typeof AccountDetailsSchema
+        >,
       })
     })
 

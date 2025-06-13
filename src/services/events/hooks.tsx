@@ -6,12 +6,11 @@ import { useRef } from 'react'
 import { useParams, useRouteMatch } from 'react-router'
 import { z } from 'zod'
 
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { Provider, rejectNetworkError } from 'shared/api/helpers'
+import { Provider } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 import { eventTracker } from './events'
@@ -88,14 +87,13 @@ export const OwnerContextQueryOpts = ({
           owner,
         },
       }).then((res) => {
+        const callingFn = 'OwnerContextQueryOpts'
         const parsedRes = OwnerContextSchema.safeParse(res.data)
 
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'OwnerContextQueryOpts - 404 Failed to parse data',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 
@@ -170,22 +168,20 @@ export const RepoContextQueryOpts = ({
           repo,
         },
       }).then((res) => {
+        const callingFn = 'RepoContextQueryOpts'
         const parsedRes = RepoContextSchema.safeParse(res.data)
 
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'RepoContextQueryOpts - 404 Failed to parse data',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 
         if (parsedRes.data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'RepoContextQueryOpts - 404 NotFoundError',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
@@ -194,7 +190,8 @@ export const RepoContextQueryOpts = ({
           'OwnerNotActivatedError'
         ) {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -205,7 +202,6 @@ export const RepoContextQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'RepoContextQueryOpts - 403 OwnerNotActivatedError',
           })
         }
 

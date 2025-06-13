@@ -2,11 +2,8 @@ import { useParams } from 'react-router-dom'
 
 import config from 'config'
 
-import {
-  EVENT_METRICS,
-  useStoreCodecovEventMetric,
-} from 'services/codecovEventMetrics'
-import { useOrgUploadToken } from 'services/orgUploadToken'
+import { eventTracker } from 'services/events/events'
+import { useOrgUploadToken } from 'services/orgUploadToken/useOrgUploadToken'
 import { Provider } from 'shared/api/helpers'
 import A from 'ui/A'
 import { Card } from 'ui/Card'
@@ -32,7 +29,6 @@ function WorkflowYMLStep({
   frameworkInstructions,
   stepNum,
 }: WorkflowYMLStepProps) {
-  const { mutate: storeEventMetric } = useStoreCodecovEventMetric()
   const { provider, owner, repo } = useParams<URLParams>()
   const { data: orgUploadToken } = useOrgUploadToken({
     provider,
@@ -67,10 +63,15 @@ function WorkflowYMLStep({
           <CodeSnippet
             clipboard={workflowYMLConfig}
             clipboardOnClick={() =>
-              storeEventMetric({
-                owner,
-                event: EVENT_METRICS.COPIED_TEXT,
-                jsonPayload: { text: `coverage GHA ${framework} upload` },
+              eventTracker().track({
+                type: 'Button Clicked',
+                properties: {
+                  buttonName: 'Copy',
+                  buttonLocation: 'Coverage onboarding',
+                  ciProvider: 'GitHub Actions',
+                  testingFramework: framework,
+                  copied: 'YAML snippet',
+                },
               })
             }
           >
@@ -90,10 +91,15 @@ function WorkflowYMLStep({
           <CodeSnippet
             clipboard={frameworkInstructions[framework].githubActionsWorkflow}
             clipboardOnClick={() =>
-              storeEventMetric({
-                owner,
-                event: EVENT_METRICS.COPIED_TEXT,
-                jsonPayload: { text: `coverage GHA ${framework} action` },
+              eventTracker().track({
+                type: 'Button Clicked',
+                properties: {
+                  buttonName: 'Copy',
+                  buttonLocation: 'Coverage onboarding',
+                  ciProvider: 'GitHub Actions',
+                  testingFramework: framework,
+                  copied: 'Example workflow',
+                },
               })
             }
           >

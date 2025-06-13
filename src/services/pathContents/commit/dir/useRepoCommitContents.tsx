@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { PathContentsFilters } from 'services/pathContents/constants'
 import Api from 'shared/api'
-import { NetworkErrorObject } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 import { query, RequestSchema } from './constants'
@@ -52,27 +52,28 @@ export const useRepoCommitContents = ({
           filters,
         },
       }).then((res) => {
+        const callingFn = 'useRepoCommitContents'
         const parsedRes = RequestSchema.safeParse(res?.data)
+
         if (!parsedRes.success) {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useRepoCommitContents - 404 schema parsing failed',
-          } satisfies NetworkErrorObject)
+          return rejectNetworkError({
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
+          })
         }
         const data = parsedRes.data
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useRepoCommitContents - 404 NotFoundError',
-          } satisfies NetworkErrorObject)
+          return rejectNetworkError({
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
+          })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
-          return Promise.reject({
-            status: 403,
+          return rejectNetworkError({
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -83,8 +84,7 @@ export const useRepoCommitContents = ({
                 </p>
               ),
             },
-            dev: 'useRepoCommitContents - 403 OwnerNotActivatedError',
-          } satisfies NetworkErrorObject)
+          })
         }
 
         let results

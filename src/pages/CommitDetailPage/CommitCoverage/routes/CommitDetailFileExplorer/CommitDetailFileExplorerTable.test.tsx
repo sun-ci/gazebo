@@ -68,7 +68,6 @@ const mockListData = {
             name: 'file.js',
             path: 'a/b/c/file.js',
             percentCovered: 100.0,
-            isCriticalFile: false,
           },
         ],
         __typename: 'PathContents',
@@ -105,7 +104,6 @@ const mockTreeData = {
               name: 'file.js',
               path: 'a/b/c/file.js',
               percentCovered: 100.0,
-              isCriticalFile: false,
             },
           ],
           __typename: 'PathContents',
@@ -350,7 +348,7 @@ describe('CommitDetailFileExplorerTable', () => {
 
           expect(links[1]).toHaveAttribute(
             'href',
-            '/gh/codecov/cool-repo/commit/sha256/tree/a/b/c/src'
+            '/gh/codecov/cool-repo/commit/sha256/tree/a/b/c/src?dropdown=coverage'
           )
         })
       })
@@ -367,7 +365,7 @@ describe('CommitDetailFileExplorerTable', () => {
           const links = await within(table).findAllByRole('link')
           expect(links[2]).toHaveAttribute(
             'href',
-            '/gh/codecov/cool-repo/commit/sha256/blob/a/b/c/file.js'
+            '/gh/codecov/cool-repo/commit/sha256/blob/a/b/c/file.js?dropdown=coverage'
           )
         })
       })
@@ -410,7 +408,7 @@ describe('CommitDetailFileExplorerTable', () => {
           ).findAllByRole('link')
           expect(links[0]).toHaveAttribute(
             'href',
-            '/gh/codecov/cool-repo/commit/sha256/blob/a/b/c/file.js'
+            '/gh/codecov/cool-repo/commit/sha256/blob/a/b/c/file.js?dropdown=coverage'
           )
         })
       })

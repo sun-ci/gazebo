@@ -2,7 +2,8 @@ import isUndefined from 'lodash/isUndefined'
 import PropTypes from 'prop-types'
 import { useParams } from 'react-router-dom'
 
-import { TrialStatuses, useAccountDetails, usePlanData } from 'services/account'
+import { useAccountDetails } from 'services/account/useAccountDetails'
+import { TrialStatuses, usePlanData } from 'services/account/usePlanData'
 import { useOwner } from 'services/user'
 
 import Activation from './Activation'
@@ -21,6 +22,7 @@ function MemberActivation() {
   const planAutoActivateIsDefined = !isUndefined(
     accountDetails?.planAutoActivate
   )
+  const planDataIsDefined = !isUndefined(planData)
   const isNotTrialing =
     !planData?.plan?.isTrialPlan &&
     planData?.plan?.trialStatus !== TrialStatuses.ONGOING
@@ -29,7 +31,10 @@ function MemberActivation() {
   ) // only show for admins on enterprise cloud plans
 
   const showAutoActivate =
-    planAutoActivateIsDefined && isNotTrialing && isNotAnEnterpriseDeveloper
+    planAutoActivateIsDefined &&
+    planDataIsDefined &&
+    isNotTrialing &&
+    isNotAnEnterpriseDeveloper
 
   return (
     <div className="border-2 border-ds-gray-primary">

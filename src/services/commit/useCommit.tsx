@@ -4,21 +4,17 @@ import { z } from 'zod'
 
 import { OrderingDirection } from 'types'
 
-import {
-  FirstPullRequestSchema,
-  MissingBaseCommitSchema,
-  MissingBaseReportSchema,
-  MissingComparisonSchema,
-  MissingHeadCommitSchema,
-  MissingHeadReportSchema,
-} from 'services/comparison/schemas'
-import { UnknownFlagsSchema } from 'services/impactedFiles/schemas'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo/schemas'
+import { FirstPullRequestSchema } from 'services/comparison/schemas/FirstPullRequest'
+import { MissingBaseCommitSchema } from 'services/comparison/schemas/MissingBaseCommit'
+import { MissingBaseReportSchema } from 'services/comparison/schemas/MissingBaseReport'
+import { MissingComparisonSchema } from 'services/comparison/schemas/MissingComparison'
+import { MissingHeadCommitSchema } from 'services/comparison/schemas/MissingHeadCommit'
+import { MissingHeadReportSchema } from 'services/comparison/schemas/MissingHeadReport'
+import { UnknownFlagsSchema } from 'services/impactedFiles/schemas/UnknownFlags'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import {
   ErrorCodeEnum,
   UploadStateEnum,
@@ -71,7 +67,6 @@ const UploadsSchema = z.object({
 const ImpactedFileSchema = z
   .object({
     headName: z.string().nullable(),
-    isCriticalFile: z.boolean(),
     patchCoverage: CoverageObjSchema.nullable(),
     baseCoverage: CoverageObjSchema.nullable(),
     headCoverage: CoverageObjSchema.nullable(),
@@ -238,7 +233,6 @@ query Commit(
                 __typename
                 ... on ImpactedFiles {
                   results {
-                    isCriticalFile
                     patchCoverage {
                       coverage: percentCovered
                     }
@@ -353,14 +347,13 @@ export function useCommit({
           isTeamPlan,
         },
       }).then((res) => {
+        const callingFn = 'useCommit'
         const parsedRes = RequestSchema.safeParse(res?.data)
 
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useCommit - 404 failed to parse',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 
@@ -368,15 +361,15 @@ export function useCommit({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useCommit - 404 not found',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -387,7 +380,6 @@ export function useCommit({
                 </p>
               ),
             },
-            dev: 'useCommit - 403 owner not activated',
           })
         }
 

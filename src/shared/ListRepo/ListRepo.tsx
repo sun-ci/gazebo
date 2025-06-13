@@ -1,14 +1,13 @@
-import { Suspense, useContext } from 'react'
+import { Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 
 import GithubConfigBanner from 'pages/OwnerPage/HeaderBanners/GithubConfigBanner'
 import { ONBOARDING_SOURCE } from 'pages/TermsOfService/constants'
-import { useLocationParams } from 'services/navigation'
+import { useLocationParams } from 'services/navigation/useLocationParams'
 import { orderingOptions } from 'services/repos/orderingOptions'
 import { useIsTeamPlan } from 'services/useIsTeamPlan'
 import { useIsCurrentUserAnAdmin, useUser } from 'services/user'
 import { Provider } from 'shared/api/helpers'
-import { ActiveContext } from 'shared/context'
 import { Alert } from 'ui/Alert'
 import Spinner from 'ui/Spinner'
 
@@ -22,12 +21,6 @@ const defaultQueryParams = {
   direction: orderingOptions[0]['direction'],
   repoDisplay: 'All',
 }
-
-export const repoDisplayOptions = Object.freeze({
-  CONFIGURED: { text: 'Configured', status: true },
-  NOT_CONFIGURED: { text: 'Not Configured', status: false },
-  ALL: { text: 'All', status: undefined },
-})
 
 interface ListRepoProps {
   canRefetch: boolean
@@ -52,8 +45,6 @@ function ListRepo({ canRefetch, hasGhApp }: ListRepoProps) {
   })
   const isAdmin = useIsCurrentUserAnAdmin({ owner })
 
-  const repoDisplay = useContext(ActiveContext)
-
   const loadingState = (
     <div className="flex justify-center py-8">
       <Spinner />
@@ -70,12 +61,6 @@ function ListRepo({ canRefetch, hasGhApp }: ListRepoProps) {
       {isAdmin && !hasGhApp && !showDemoAlert ? <GithubConfigBanner /> : null}
       <OrgControlTable
         searchValue={search}
-        repoDisplay={repoDisplay}
-        setRepoDisplay={(repoDisplay) =>
-          updateParams({
-            repoDisplay,
-          })
-        }
         setSearchValue={(search) => {
           updateParams({ search })
         }}

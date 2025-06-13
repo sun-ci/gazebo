@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   useAddNotification: vi.fn(),
 }))
 
-vi.mock('services/toastNotification', async () => {
-  const actual = await vi.importActual('services/toastNotification')
+vi.mock('services/toastNotification/context', async () => {
+  const actual = await vi.importActual('services/toastNotification/context')
   return {
     ...actual,
     useAddNotification: mocks.useAddNotification,
@@ -64,7 +64,6 @@ describe('RepoState', () => {
                 bot: {
                   username: 'test',
                 },
-                profilingToken: null,
                 staticAnalysisToken: null,
               },
             },

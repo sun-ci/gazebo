@@ -2,7 +2,7 @@ import { useMutation as useMutationV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 
 const UpdateBundleCacheInputSchema = z.array(
   z.object({
@@ -14,7 +14,7 @@ const UpdateBundleCacheInputSchema = z.array(
 const UpdateBundleCacheOutputSchema = z.array(
   z.object({
     bundleName: z.string(),
-    isCached: z.boolean(),
+    cacheConfig: z.boolean(),
   })
 )
 
@@ -38,8 +38,7 @@ const MutationRequestSchema = z.object({
     .nullable(),
 })
 
-const query = `
-mutation UpdateBundleCacheConfig(
+const query = `mutation UpdateBundleCacheConfig(
   $owner: String!
   $repo: String!
   $bundles: [BundleCacheConfigInput!]!
@@ -49,7 +48,7 @@ mutation UpdateBundleCacheConfig(
   ) {
     results {
       bundleName
-      isCached
+      cacheConfig
     }
     error {
       __typename
@@ -77,13 +76,13 @@ export const useUpdateBundleCache = ({
   return useMutationV5({
     throwOnError: false,
     mutationFn: (input: z.infer<typeof UpdateBundleCacheInputSchema>) => {
+      const callingFn = 'useUpdateBundleCache'
       const parsedInput = UpdateBundleCacheInputSchema.safeParse(input)
+
       if (!parsedInput.success) {
         return rejectNetworkError({
-          status: 400,
-          error: parsedInput.error,
-          data: {},
-          dev: 'useUpdateBundleCache - 400 failed to parse input',
+          errorName: 'Parsing Error',
+          errorDetails: { callingFn, error: parsedInput.error },
         })
       }
 
@@ -97,10 +96,8 @@ export const useUpdateBundleCache = ({
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 400,
-            error: parsedData.error,
-            data: {},
-            dev: 'useUpdateBundleCache - 400 failed to parse data',
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 

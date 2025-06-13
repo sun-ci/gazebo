@@ -1,15 +1,13 @@
-import { lazy } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { useOrgUploadToken } from 'services/orgUploadToken'
+import { useOrgUploadToken } from 'services/orgUploadToken/useOrgUploadToken'
 import { useFlags } from 'shared/featureFlags'
 import A from 'ui/A'
 import Banner from 'ui/Banner'
 
 import GenerateOrgUploadToken from './GenerateOrgUploadToken'
 import RegenerateOrgUploadToken from './RegenerateOrgUploadToken'
-
-const TokenlessSection = lazy(() => import('./TokenlessSection'))
+import TokenlessSection from './TokenlessSection'
 
 interface URLParams {
   provider: string

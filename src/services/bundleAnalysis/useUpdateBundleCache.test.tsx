@@ -11,7 +11,7 @@ import { useUpdateBundleCache } from './useUpdateBundleCache'
 const mockSuccessfulResponse = {
   data: {
     updateBundleCacheConfig: {
-      results: [{ bundleName: 'bundle-1', isCached: true }],
+      results: [{ bundleName: 'bundle-1', cacheConfig: true }],
       error: null,
     },
   },
@@ -111,7 +111,7 @@ describe('useUpdateBundleCache', () => {
       await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
       expect(result.current.data).toEqual([
-        { bundleName: 'bundle-1', isCached: true },
+        { bundleName: 'bundle-1', cacheConfig: true },
       ])
     })
   })
@@ -140,8 +140,7 @@ describe('useUpdateBundleCache', () => {
           await waitFor(() => expect(result.current.isError).toBe(true))
 
           expect(result.current.error).toEqual({
-            data: {},
-            dev: 'useUpdateBundleCache - 400 failed to parse input',
+            dev: 'useUpdateBundleCache - Parsing Error',
             status: 400,
           })
         })
@@ -168,8 +167,7 @@ describe('useUpdateBundleCache', () => {
           await waitFor(() => expect(result.current.isError).toBe(true))
 
           expect(result.current.error).toEqual({
-            data: {},
-            dev: 'useUpdateBundleCache - 400 failed to parse data',
+            dev: 'useUpdateBundleCache - Parsing Error',
             status: 400,
           })
         })

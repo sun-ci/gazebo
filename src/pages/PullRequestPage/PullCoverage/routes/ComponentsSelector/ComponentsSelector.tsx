@@ -1,8 +1,8 @@
 import isUndefined from 'lodash/isUndefined'
 import { useMemo, useState } from 'react'
 
-import { useLocationParams } from 'services/navigation'
-import { usePullComponents } from 'services/pull'
+import { useLocationParams } from 'services/navigation/useLocationParams'
+import { usePullComponents } from 'services/pull/usePullComponents'
 import Icon from 'ui/Icon'
 import MultiSelect from 'ui/MultiSelect'
 
@@ -25,7 +25,7 @@ function ComponentsSelector() {
   })
 
   const components = useMemo(() => {
-    return data?.pull?.compareWithBase.__typename === 'Comparison'
+    return data?.pull?.compareWithBase?.__typename === 'Comparison'
       ? data?.pull?.compareWithBase?.componentComparisons
       : []
   }, [data])

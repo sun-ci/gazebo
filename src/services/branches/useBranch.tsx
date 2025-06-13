@@ -1,12 +1,10 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 import { z } from 'zod'
 
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { type NetworkErrorObject } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 export const BranchSchema = z
@@ -20,7 +18,7 @@ export const BranchSchema = z
   })
   .nullable()
 
-type BranchData = z.infer<typeof BranchSchema>
+export type Branch = z.infer<typeof BranchSchema>
 
 const GetBranchSchema = z.object({
   owner: z
@@ -44,7 +42,7 @@ export interface UseBranchArgs {
   owner: string
   repo: string
   branch: string
-  opts?: UseQueryOptions<{ branch: BranchData }>
+  opts?: UseQueryOptions<{ branch: Branch }>
 }
 
 export const query = `
@@ -90,29 +88,29 @@ export const useBranch = ({
           branch,
         },
       }).then((res) => {
+        const callingFn = 'useBranch'
         const parsedData = GetBranchSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useBranch - 404 schema parsing failed',
-          } satisfies NetworkErrorObject)
+          return rejectNetworkError({
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
+          })
         }
 
         const data = parsedData.data
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
-          return Promise.reject({
-            status: 404,
-            data: {},
-            dev: 'useBranch - 404 NotFoundError',
-          } satisfies NetworkErrorObject)
+          return rejectNetworkError({
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
+          })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
-          return Promise.reject({
-            status: 403,
+          return rejectNetworkError({
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -123,8 +121,7 @@ export const useBranch = ({
                 </p>
               ),
             },
-            dev: 'useBranch - 403 OwnerNotActivatedError',
-          } satisfies NetworkErrorObject)
+          })
         }
 
         return {

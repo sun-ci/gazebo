@@ -1,12 +1,10 @@
 import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 const RepositorySchema = z.object({
@@ -74,14 +72,13 @@ export const RepoForTokensTeamQueryOpts = ({
           repo,
         },
       }).then((res) => {
+        const callingFn = 'RepoForTokensTeamQueryOpts'
         const parsedData = GetRepoDataSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: `RepoForTokensTeamQueryOpts - 404 failed to parse schema`,
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -89,15 +86,15 @@ export const RepoForTokensTeamQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: `RepoForTokensTeamQueryOpts - 404 not found`,
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -108,7 +105,6 @@ export const RepoForTokensTeamQueryOpts = ({
                 </p>
               ),
             },
-            dev: `RepoForTokensTeamQueryOpts - 403 owner not activated`,
           })
         }
 

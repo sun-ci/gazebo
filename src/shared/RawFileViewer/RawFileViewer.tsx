@@ -5,18 +5,18 @@ import qs from 'qs'
 import { useLocation, useParams } from 'react-router-dom'
 
 import NotFound from 'pages/NotFound'
-import { useCommitBasedCoverageForFileViewer } from 'services/file'
+import { useCommitBasedCoverageForFileViewer } from 'services/file/useCommitBasedCoverageForFileViewer'
 import { useOwner } from 'services/user'
 import { unsupportedExtensionsMapper } from 'shared/utils/unsupportedExtensionsMapper'
 import { getFilenameFromFilePath } from 'shared/utils/url'
 import A from 'ui/A'
 import CodeRendererProgressHeader from 'ui/CodeRenderer/CodeRendererProgressHeader'
-import CriticalFileLabel from 'ui/CodeRenderer/CriticalFileLabel'
 import ToggleHeader from 'ui/FileViewer/ToggleHeader'
 import Title from 'ui/FileViewer/ToggleHeader/Title'
 import { VirtualFileRenderer } from 'ui/VirtualRenderers'
 
 function ErrorDisplayMessage() {
+  const location = useLocation()
   return (
     <p className="border border-solid border-ds-gray-tertiary p-4">
       There was a problem getting the source code from your provider. Unable to
@@ -25,9 +25,7 @@ function ErrorDisplayMessage() {
       <span>
         If you continue to experience this issue, please try{' '}
         <A
-          to={{
-            pageName: 'login',
-          }}
+          to={{ pageName: 'login', options: { to: location.pathname } }}
           hook={undefined}
           isExternal={undefined}
         >
@@ -147,7 +145,6 @@ function RawFileViewer({
     content,
     totals: fileCoverage,
     coverage: coverageData,
-    isCriticalFile,
   } = useCommitBasedCoverageForFileViewer({
     owner,
     repo,
@@ -176,7 +173,6 @@ function RawFileViewer({
       />
       <div id={path} className="target:ring">
         <CodeRendererProgressHeader path={path} fileCoverage={fileCoverage} />
-        {!!isCriticalFile && <CriticalFileLabel variant="borderTop" />}
         <CodeRendererContent
           isUnsupportedFileType={isUnsupportedFileType}
           content={content}

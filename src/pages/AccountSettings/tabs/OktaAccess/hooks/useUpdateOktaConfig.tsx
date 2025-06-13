@@ -4,9 +4,10 @@ import {
 } from '@tanstack/react-queryV5'
 import z from 'zod'
 
-import { useAddNotification } from 'services/toastNotification'
+import { useAddNotification } from 'services/toastNotification/context'
 import Api from 'shared/api'
-import { Provider, rejectNetworkError } from 'shared/api/helpers'
+import { Provider } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 import { OktaConfigQueryOpts } from '../queries/OktaConfigQueryOpts'
@@ -102,13 +103,13 @@ export const useUpdateOktaConfig = ({ provider, owner }: URLParams) => {
       })
     },
     onSuccess: ({ data }) => {
+      const callingFn = 'useUpdateOktaConfig'
       const parsedData = ResponseSchema.safeParse(data)
+
       if (!parsedData.success) {
         return rejectNetworkError({
-          status: 404,
-          data: {},
-          dev: 'useUpdateOktaConfig - 404 failed to parse',
-          error: parsedData.error,
+          errorName: 'Parsing Error',
+          errorDetails: { callingFn, error: parsedData.error },
         })
       }
 

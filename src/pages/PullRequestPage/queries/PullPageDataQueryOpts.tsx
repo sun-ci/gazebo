@@ -1,20 +1,16 @@
 import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import {
-  FirstPullRequestSchema,
-  MissingBaseCommitSchema,
-  MissingBaseReportSchema,
-  MissingComparisonSchema,
-  MissingHeadCommitSchema,
-  MissingHeadReportSchema,
-} from 'services/comparison'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { FirstPullRequestSchema } from 'services/comparison/schemas/FirstPullRequest'
+import { MissingBaseCommitSchema } from 'services/comparison/schemas/MissingBaseCommit'
+import { MissingBaseReportSchema } from 'services/comparison/schemas/MissingBaseReport'
+import { MissingComparisonSchema } from 'services/comparison/schemas/MissingComparison'
+import { MissingHeadCommitSchema } from 'services/comparison/schemas/MissingHeadCommit'
+import { MissingHeadReportSchema } from 'services/comparison/schemas/MissingHeadReport'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 const BundleAnalysisReportSchema = z.object({
@@ -218,14 +214,13 @@ export const PullPageDataQueryOpts = ({
           isTeamPlan,
         },
       }).then((res) => {
+        const callingFn = 'PullPageDataQueryOpts'
         const parsedData = PullPageDataSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'PullPageDataQueryOpts - 404 Failed to parse schema',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -233,15 +228,15 @@ export const PullPageDataQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'PullPageDataQueryOpts - 404 Not found',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -252,7 +247,6 @@ export const PullPageDataQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'PullPageDataQueryOpts - 403 Owner not activated',
           })
         }
 

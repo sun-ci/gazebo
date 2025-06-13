@@ -1,5 +1,5 @@
 sha := $(shell git rev-parse --short=7 HEAD)
-release_version := '25.2.7'
+release_version := '25.6.2'
 build_date ?= $(shell git show -s --date=iso8601-strict --pretty=format:%cd $$sha)
 dockerhub_image := harbor.sun-asterisk.vn/sun-devops/athena/self-hosted-frontend
 ENV ?= ENTERPRISE

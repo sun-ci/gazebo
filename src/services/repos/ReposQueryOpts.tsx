@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { RepositoryConfigSchema } from 'services/repo/useRepoConfig'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import { mapEdges } from 'shared/utils/graphql'
 
 import {
@@ -110,7 +110,6 @@ const query = `query ReposForOwner(
 interface ReposQueryArgs {
   provider: string
   owner: string
-  activated?: boolean
   term?: string
   sortItem?: {
     ordering?: string
@@ -124,7 +123,6 @@ interface ReposQueryArgs {
 function ReposQueryOpts({
   provider,
   owner,
-  activated,
   term,
   sortItem = orderingOptions[0],
   first = 20,
@@ -132,7 +130,7 @@ function ReposQueryOpts({
   isPublic = null, // by default, get both public and private repos
 }: ReposQueryArgs) {
   const variables = {
-    filters: { activated, term, repoNames, isPublic },
+    filters: { term, repoNames, isPublic },
     ordering: sortItem?.ordering,
     direction: sortItem?.direction,
     first,
@@ -153,13 +151,13 @@ function ReposQueryOpts({
           after,
         },
       }).then((res) => {
+        const callingFn = 'ReposQueryOpts'
         const parsedRes = RequestSchema.safeParse(res?.data)
+
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'ReposQueryOpts - 404 Failed to parse schema',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 

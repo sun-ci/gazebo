@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import Api from 'shared/api'
-import { Provider, rejectNetworkError } from 'shared/api/helpers'
+import { Provider } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 
 const query = `
   mutation RegenerateOrgUploadToken(
@@ -64,13 +65,13 @@ export function useRegenerateOrgUploadToken({
         variables: { input: { owner } },
         mutationPath: 'RegenerateOrgUploadToken',
       }).then(({ data }) => {
+        const callingFn = 'useRegenerateOrgUploadToken'
         const parsedRes = ResponseSchema.safeParse(data)
+
         if (!parsedRes.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useRegenerateOrgUploadToken - 404 schema parsing failed',
-            error: parsedRes.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedRes.error },
           })
         }
 

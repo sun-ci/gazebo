@@ -1,18 +1,16 @@
 import { queryOptions as queryOptionsV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import { MissingHeadReportSchema } from 'services/comparison'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { MissingHeadReportSchema } from 'services/comparison/schemas/MissingHeadReport'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import A from 'ui/A'
 
 const BundleSchema = z.object({
   name: z.string(),
-  isCached: z.boolean(),
+  cacheConfig: z.boolean(),
 })
 
 const BundleAnalysisReportSchema = z.object({
@@ -73,7 +71,7 @@ const query = `query CachedBundleList(
                 ... on BundleAnalysisReport {
                   bundles {
                     name
-                    isCached
+                    cacheConfig
                   }
                 }
                 ... on MissingHeadReport {
@@ -118,14 +116,13 @@ export const CachedBundlesQueryOpts = ({
         signal,
         variables,
       }).then((res) => {
+        const callingFn = 'CachedBundlesQueryOpts'
         const parsedData = BranchBundleSummaryDataSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'CachedBundlesQueryOpts - 404 Failed to parse',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -133,15 +130,15 @@ export const CachedBundlesQueryOpts = ({
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'CachedBundlesQueryOpts - 404 Repository not found',
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
           })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -152,18 +149,17 @@ export const CachedBundlesQueryOpts = ({
                 </p>
               ),
             },
-            dev: 'CachedBundlesQueryOpts - 403 Owner not activated',
           })
         }
 
-        let bundles: Array<{ bundleName: string; isCached: boolean }> = []
+        let bundles: Array<{ bundleName: string; cacheConfig: boolean }> = []
         if (
           data?.owner?.repository?.branch?.head?.bundleAnalysis
             ?.bundleAnalysisReport?.__typename === 'BundleAnalysisReport'
         ) {
           bundles =
             data.owner.repository.branch.head.bundleAnalysis?.bundleAnalysisReport?.bundles?.map(
-              ({ name, isCached }) => ({ bundleName: name, isCached })
+              ({ name, cacheConfig }) => ({ bundleName: name, cacheConfig })
             )
         }
 

@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
   useAddNotification: vi.fn(),
 }))
 
-vi.mock('services/toastNotification', async () => {
-  const actual = await vi.importActual('services/toastNotification')
+vi.mock('services/toastNotification/context', async () => {
+  const actual = await vi.importActual('services/toastNotification/context')
   return {
     ...actual,
     useAddNotification: mocks.useAddNotification,
@@ -107,9 +107,8 @@ describe('useSetUploadTokenRequired', () => {
 
           expect(error).toBeDefined()
           expect(error).toEqual({
-            status: 404,
-            data: {},
-            dev: 'useSetUploadTokenRequired - 404 failed to parse',
+            dev: 'useSetUploadTokenRequired - Parsing Error',
+            status: 400,
           })
         })
       })

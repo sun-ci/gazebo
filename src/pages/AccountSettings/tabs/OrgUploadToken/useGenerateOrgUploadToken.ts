@@ -1,5 +1,5 @@
-import { useRegenerateOrgUploadToken } from 'services/orgUploadToken'
-import { useAddNotification } from 'services/toastNotification'
+import { useRegenerateOrgUploadToken } from 'services/orgUploadToken/useRegenerateOrgUploadToken'
+import { useAddNotification } from 'services/toastNotification/context'
 
 export default function useGenerateOrgUploadToken() {
   const addToast = useAddNotification()

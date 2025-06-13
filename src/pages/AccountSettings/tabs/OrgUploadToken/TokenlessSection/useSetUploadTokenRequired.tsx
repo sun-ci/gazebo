@@ -2,9 +2,18 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMutation as useMutationV5 } from '@tanstack/react-queryV5'
 import { z } from 'zod'
 
-import { useAddNotification } from 'services/toastNotification'
+import { useAddNotification } from 'services/toastNotification/context'
 import Api from 'shared/api'
-import { Provider, rejectNetworkError } from 'shared/api/helpers'
+import { Provider } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
+import { removeFromLocalStorage } from 'ui/TopBanner/TopBanner'
+
+import {
+  ADMIN_TOKEN_NOT_REQUIRED_BANNER,
+  ADMIN_TOKEN_REQUIRED_BANNER,
+  MEMBER_TOKEN_NOT_REQUIRED_BANNER,
+  MEMBER_TOKEN_REQUIRED_BANNER,
+} from './constants'
 
 const TOAST_DURATION = 10000
 
@@ -72,13 +81,13 @@ export const useSetUploadTokenRequired = ({
         },
         mutationPath: 'setUploadTokenRequired',
       }).then((res) => {
+        const callingFn = 'useSetUploadTokenRequired'
         const parsedData = ResponseSchema.safeParse(res.data)
+
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useSetUploadTokenRequired - 404 failed to parse',
-            error: parsedData.error,
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
           })
         }
 
@@ -99,6 +108,13 @@ export const useSetUploadTokenRequired = ({
           text: 'Upload token requirement updated successfully',
           disappearAfter: TOAST_DURATION,
         })
+
+        // we want to show the banners again when this setting is changed
+        // even if the user dismissed them in the past
+        removeFromLocalStorage(MEMBER_TOKEN_NOT_REQUIRED_BANNER)
+        removeFromLocalStorage(ADMIN_TOKEN_NOT_REQUIRED_BANNER)
+        removeFromLocalStorage(MEMBER_TOKEN_REQUIRED_BANNER)
+        removeFromLocalStorage(ADMIN_TOKEN_REQUIRED_BANNER)
 
         // only want to invalidate the query if the mutation was successful
         // otherwise we're just going to re-fetch the same data

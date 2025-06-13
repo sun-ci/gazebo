@@ -10,8 +10,9 @@ import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route, useLocation } from 'react-router-dom'
 
-import { IndividualPlan, TrialStatuses } from 'services/account'
 import { accountDetailsParsedObj } from 'services/account/mocks'
+import { IndividualPlan } from 'services/account/useAvailablePlans'
+import { TrialStatuses } from 'services/account/usePlanData'
 import { BillingRate, Plans } from 'shared/utils/billing'
 
 import UpgradeForm from './UpgradeForm'
@@ -20,8 +21,8 @@ const mocks = vi.hoisted(() => ({
   useAddNotification: vi.fn(),
 }))
 
-vi.mock('services/toastNotification', async () => {
-  const actual = await vi.importActual('services/toastNotification')
+vi.mock('services/toastNotification/context', async () => {
+  const actual = await vi.importActual('services/toastNotification/context')
   return {
     ...actual,
     useAddNotification: mocks.useAddNotification,

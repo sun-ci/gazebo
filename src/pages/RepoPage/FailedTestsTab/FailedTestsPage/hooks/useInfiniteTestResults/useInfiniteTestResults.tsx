@@ -6,12 +6,10 @@ import { useMemo } from 'react'
 import { z } from 'zod'
 
 import { MeasurementInterval } from 'pages/RepoPage/shared/constants'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import Api from 'shared/api'
-import { type NetworkErrorObject, rejectNetworkError } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import { PlanName, Plans } from 'shared/utils/billing'
 import { mapEdges } from 'shared/utils/graphql'
 import A from 'ui/A'
@@ -236,30 +234,29 @@ export const useInfiniteTestResults = ({
           before,
         },
       }).then((res) => {
+        const callingFn = 'useInfiniteTestResults'
         const parsedData = GetTestResultsSchema.safeParse(res?.data)
 
         if (!parsedData.success) {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useInfiniteTestResults - 404 Failed to parse data',
-            error: parsedData.error,
-          } satisfies NetworkErrorObject)
+            errorName: 'Parsing Error',
+            errorDetails: { callingFn, error: parsedData.error },
+          })
         }
 
         const data = parsedData.data
 
         if (data?.owner?.repository?.__typename === 'NotFoundError') {
           return rejectNetworkError({
-            status: 404,
-            data: {},
-            dev: 'useInfiniteTestResults - 404 Not found error',
-          } satisfies NetworkErrorObject)
+            errorName: 'Not Found Error',
+            errorDetails: { callingFn },
+          })
         }
 
         if (data?.owner?.repository?.__typename === 'OwnerNotActivatedError') {
           return rejectNetworkError({
-            status: 403,
+            errorName: 'Owner Not Activated',
+            errorDetails: { callingFn },
             data: {
               detail: (
                 <p>
@@ -270,8 +267,7 @@ export const useInfiniteTestResults = ({
                 </p>
               ),
             },
-            dev: 'useInfiniteTestResults - 403 Owner not activated',
-          } satisfies NetworkErrorObject)
+          })
         }
 
         return {

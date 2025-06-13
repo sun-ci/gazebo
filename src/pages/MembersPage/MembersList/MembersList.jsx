@@ -1,17 +1,14 @@
-import { lazy, Suspense, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Suspense, useState } from 'react'
 
-import { usePlanData } from 'services/account'
-import { ApiFilterEnum, useLocationParams } from 'services/navigation'
-import { useUpdateUser } from 'services/users'
+import { ApiFilterEnum } from 'services/navigation/normalize'
+import { useLocationParams } from 'services/navigation/useLocationParams'
 import SearchField from 'ui/SearchField'
 import Select from 'ui/Select'
 import Spinner from 'ui/Spinner'
 
 import { ActivatedItems, AdminItems } from './enums'
+import MembersTable from './MembersTable/MembersTable'
 import UpgradeModal from './UpgradeModal/UpgradeModal'
-
-const MembersTable = lazy(() => import('./MembersTable'))
 
 const UserManagementClasses = {
   root: 'space-y-4 col-span-2 mb-20 grow mt-4', // Select pushes page length out. For now padding
@@ -26,33 +23,7 @@ const UserManagementClasses = {
   cta: 'w-full truncate',
 }
 
-function useActivateUser({ provider, owner }) {
-  const { mutate, ...rest } = useUpdateUser({
-    provider,
-    owner,
-  })
-
-  function activate(ownerid, activated) {
-    mutate({ targetUserOwnerid: ownerid, activated })
-  }
-
-  return { activate, ...rest }
-}
-
-const handleActivate = (planData, activate, setIsOpen) => (user) => {
-  if (
-    !planData?.plan?.hasSeatsLeft &&
-    !user.activated &&
-    planData?.plan?.isFreePlan
-  ) {
-    setIsOpen(true)
-  } else {
-    activate(user.ownerid, !user.activated)
-  }
-}
-
 function MembersList() {
-  const { owner, provider } = useParams()
   const { params, updateParams } = useLocationParams({
     activated: ApiFilterEnum.none, // Default to no filter on activated
     isAdmin: ApiFilterEnum.none, // Default to no filter on isAdmin
@@ -61,8 +32,6 @@ function MembersList() {
     pageSize: 50, // Default page size
   })
 
-  const { activate } = useActivateUser({ owner, provider })
-  const { data: planData } = usePlanData({ owner, provider })
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -114,7 +83,7 @@ function MembersList() {
         }
       >
         <MembersTable
-          handleActivate={handleActivate(planData, activate, setIsOpen)}
+          openUpgradeModal={() => setIsOpen(true)}
           params={params}
         />
       </Suspense>

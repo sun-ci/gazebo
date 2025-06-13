@@ -1,12 +1,9 @@
 import { useParams } from 'react-router-dom'
 
 import githubLogo from 'assets/githublogo.png'
-import {
-  TrialStatuses,
-  useAccountDetails,
-  useAvailablePlans,
-  usePlanData,
-} from 'services/account'
+import { useAccountDetails } from 'services/account/useAccountDetails'
+import { useAvailablePlans } from 'services/account/useAvailablePlans'
+import { TrialStatuses, usePlanData } from 'services/account/usePlanData'
 import { useStartTrial } from 'services/trial'
 import { canApplySentryUpgrade } from 'shared/utils/billing'
 import A from 'ui/A/A'
@@ -83,7 +80,7 @@ function ActionsBilling() {
       <div className="flex flex-col gap-4 border-ds-gray-secondary">
         <hr />
         <div className="flex gap-4">
-          <img className="size-8" alt="Github" src={githubLogo} />
+          <img className="size-8" alt="GitHub" src={githubLogo} />
           <p className="text-sm">
             Your account is configured via GitHub Marketplace
           </p>

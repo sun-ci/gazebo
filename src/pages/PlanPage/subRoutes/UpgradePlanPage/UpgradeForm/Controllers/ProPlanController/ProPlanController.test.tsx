@@ -6,7 +6,8 @@ import { setupServer } from 'msw/node'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 
-import { IndividualPlan, TrialStatuses } from 'services/account'
+import { IndividualPlan } from 'services/account/useAvailablePlans'
+import { TrialStatuses } from 'services/account/usePlanData'
 import { BillingRate, Plans } from 'shared/utils/billing'
 
 import ProPlanController from './ProPlanController'
@@ -16,8 +17,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@stripe/react-stripe-js')
-vi.mock('services/toastNotification', async () => {
-  const actual = await vi.importActual('services/toastNotification')
+vi.mock('services/toastNotification/context', async () => {
+  const actual = await vi.importActual('services/toastNotification/context')
   return {
     ...actual,
     useAddNotification: mocks.useAddNotification,

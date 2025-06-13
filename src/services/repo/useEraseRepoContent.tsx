@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 
-import { useAddNotification } from 'services/toastNotification'
+import { useAddNotification } from 'services/toastNotification/context'
 import Api from 'shared/api'
 
 const query = `
-  mutation EraseRepository($repoName: String!) {
-    eraseRepository(input: { repoName: $repoName }) {
+  mutation EraseRepository($owner: String!, $repoName: String!) {
+    eraseRepository(input: { owner: $owner, repoName: $repoName }) {
       error {
         ... on UnauthorizedError {
           message

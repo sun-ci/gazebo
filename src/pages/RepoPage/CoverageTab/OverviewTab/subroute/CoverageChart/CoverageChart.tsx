@@ -1,8 +1,9 @@
+import { keepPreviousData } from '@tanstack/react-queryV5'
 import { format } from 'date-fns'
 import { useParams } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
-import { useBranches } from 'services/branches'
+import { useBranches } from 'services/branches/useBranches'
 import { useRepoOverview } from 'services/repo'
 import {
   ChartConfig,
@@ -43,17 +44,16 @@ function CoverageChart() {
     defaultBranch: overview?.defaultBranch ?? '',
   })
 
-  const { data, isPreviousData, isLoading, isError } =
+  const { data, isPlaceholderData, isPending, isError } =
     useRepoCoverageTimeseries({
       branch: selection?.name,
       options: {
         enabled: !!selection?.name,
-        suspense: false,
-        keepPreviousData: true,
+        placeholderData: keepPreviousData,
       },
     })
 
-  if (!isPreviousData && isLoading) {
+  if (!isPlaceholderData && isPending) {
     return <Placeholder />
   }
 
@@ -65,7 +65,8 @@ function CoverageChart() {
     )
   }
 
-  if (data?.measurements.length < 1) {
+  const dataCount = data?.measurements?.length ?? 0
+  if (dataCount < 1) {
     return (
       <div className="flex min-h-[250px] items-center justify-center xl:min-h-[380px]">
         <p className="text-center">
@@ -85,7 +86,7 @@ function CoverageChart() {
   return (
     <ChartContainer
       config={chartConfig}
-      className="max-h-[250px] min-h-[200px] w-full xl:max-h-[380px]"
+      className="h-[250px] w-full xl:h-[380px] 2xl:h-[500px]"
     >
       <AreaChart
         accessibilityLayer

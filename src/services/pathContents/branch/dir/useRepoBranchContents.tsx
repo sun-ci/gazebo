@@ -2,14 +2,12 @@ import * as Sentry from '@sentry/react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 
-import { UnknownFlagsSchema } from 'services/impactedFiles/schemas'
-import {
-  RepoNotFoundErrorSchema,
-  RepoOwnerNotActivatedErrorSchema,
-} from 'services/repo'
+import { UnknownFlagsSchema } from 'services/impactedFiles/schemas/UnknownFlags'
+import { RepoNotFoundErrorSchema } from 'services/repo/schemas/RepoNotFoundError'
+import { RepoOwnerNotActivatedErrorSchema } from 'services/repo/schemas/RepoOwnerNotActivatedError'
 import { RepositoryConfigSchema } from 'services/repo/useRepoConfig'
 import Api from 'shared/api'
-import { NetworkErrorObject } from 'shared/api/helpers'
+import { rejectNetworkError } from 'shared/api/rejectNetworkError'
 import { mapEdges } from 'shared/utils/graphql'
 import A from 'ui/A'
 
@@ -21,13 +19,12 @@ const BasePathContentSchema = z.object({
   partials: z.number(),
   lines: z.number(),
   name: z.string(),
-  path: z.string().nullable(),
+  path: z.string(),
   percentCovered: z.number(),
 })
 
 const PathContentFileSchema = BasePathContentSchema.extend({
   __typename: z.literal('PathContentFile'),
-  isCriticalFile: z.boolean(),
 })
 
 const PathContentDirSchema = BasePathContentSchema.extend({
@@ -82,13 +79,15 @@ export type PathContentResultType = z.infer<typeof PathContentsResultSchema>
 const RepositorySchema = z.object({
   __typename: z.literal('Repository'),
   repositoryConfig: RepositoryConfigSchema,
-  branch: z.object({
-    head: z
-      .object({
-        deprecatedPathContents: PathContentsUnionSchema.nullish(),
-      })
-      .nullable(),
-  }),
+  branch: z
+    .object({
+      head: z
+        .object({
+          deprecatedPathContents: PathContentsUnionSchema.nullish(),
+        })
+        .nullable(),
+    })
+    .nullable(),
 })
 
 const BranchContentsSchema = z.object({
@@ -143,31 +142,31 @@ export function useRepoBranchContents({
             after: pageParam,
           },
         }).then((res) => {
+          const callingFn = 'useRepoBranchContents'
           const parsedRes = BranchContentsSchema.safeParse(res?.data)
 
           if (!parsedRes.success) {
-            return Promise.reject({
-              status: 404,
-              data: {},
-              dev: 'useRepoBranchContents - 404 schema parsing failed',
-            } satisfies NetworkErrorObject)
+            return rejectNetworkError({
+              errorName: 'Parsing Error',
+              errorDetails: { callingFn, error: parsedRes.error },
+            })
           }
 
           const data = parsedRes.data
 
           if (data?.owner?.repository?.__typename === 'NotFoundError') {
-            return Promise.reject({
-              status: 404,
-              data: {},
-              dev: 'useRepoBranchContents - 404 NotFoundError',
-            } satisfies NetworkErrorObject)
+            return rejectNetworkError({
+              errorName: 'Not Found Error',
+              errorDetails: { callingFn },
+            })
           }
 
           if (
             data?.owner?.repository?.__typename === 'OwnerNotActivatedError'
           ) {
-            return Promise.reject({
-              status: 403,
+            return rejectNetworkError({
+              errorName: 'Owner Not Activated',
+              errorDetails: { callingFn },
               data: {
                 detail: (
                   <p>
@@ -178,8 +177,7 @@ export function useRepoBranchContents({
                   </p>
                 ),
               },
-              dev: 'useRepoBranchContents - 403 OwnerNotActivatedError',
-            } satisfies NetworkErrorObject)
+            })
           }
 
           let results = null

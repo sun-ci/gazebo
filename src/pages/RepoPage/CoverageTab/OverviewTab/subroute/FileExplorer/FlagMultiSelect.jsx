@@ -4,7 +4,7 @@ import PropTypes from 'prop-types'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { useLocationParams } from 'services/navigation'
+import { useLocationParams } from 'services/navigation/useLocationParams'
 import {
   useRepoBackfilled,
   useRepoFlagsSelect,
@@ -24,7 +24,7 @@ function FlagMultiSelect() {
   const { provider, owner } = useParams()
   const { params, updateParams } = useLocationParams(defaultQueryParams)
   const [selectedFlags, setSelectedFlags] = useState(params?.flags)
-  const [flagSearch, setFlagSearch] = useState(null)
+  const [flagSearch, setFlagSearch] = useState('')
 
   const { data: isTeamPlan } = useIsTeamPlan({ provider, owner })
   const { data: repoData } = useRepoSettingsTeam()

@@ -6,12 +6,13 @@ import {
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { graphql, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import qs from 'qs'
 import { Suspense } from 'react'
 import { MemoryRouter, Route } from 'react-router-dom'
 import { type MockInstance } from 'vitest'
 
 import { IgnoredIdsQueryOptions } from 'pages/CommitDetailPage/queries/IgnoredIdsQueryOptions'
-import { ImpactedFileType } from 'services/commit'
+import { ImpactedFileType } from 'services/commit/useCommit'
 
 import CommitFileDiff from './CommitFileDiff'
 
@@ -98,7 +99,6 @@ const baseMock = (impactedFile: ImpactedFileType | null) => {
 }
 
 const mockImpactedFile = {
-  isCriticalFile: false,
   headName: 'flag1/file.js',
   hashedPath: 'hashedFilePath',
   isNewFile: false,
@@ -115,6 +115,7 @@ const mockImpactedFile = {
   },
   changeCoverage: 0,
   segments: {
+    __typename: 'SegmentComparisons',
     results: [
       {
         header: '-0,0 +1,45',
@@ -333,22 +334,6 @@ describe('CommitFileDiff', () => {
     })
   })
 
-  describe('a critical file', () => {
-    beforeEach(() => {
-      const impactedFile = {
-        ...mockImpactedFile,
-        isCriticalFile: true,
-      }
-      setup({ impactedFile })
-    })
-    it('renders a critical file label', async () => {
-      render(<CommitFileDiff path={'flag1/file.js'} />, { wrapper })
-
-      const criticalFile = await screen.findByText(/Critical File/i)
-      expect(criticalFile).toBeInTheDocument()
-    })
-  })
-
   describe('when there is no data', () => {
     let consoleSpy: MockInstance
 
@@ -364,19 +349,62 @@ describe('CommitFileDiff', () => {
       setup({ impactedFile: null })
       render(<CommitFileDiff path={'random/path'} />, { wrapper })
 
-      const criticalFile = await screen.findByText(
+      const errorMessage = await screen.findByText(
         /There was a problem getting the source code from your provider. Unable to show line by line coverage/i
       )
-      expect(criticalFile).toBeInTheDocument()
+      expect(errorMessage).toBeInTheDocument()
     })
 
     it('renders a login link', async () => {
       setup({ impactedFile: null })
       render(<CommitFileDiff path={'random/path'} />, { wrapper })
 
+      const queryString = qs.stringify({
+        to: '/gh/codecov/gazebo/commit/123sha/folder/subfolder/file.js',
+      })
       const link = await screen.findByText(/logging in/)
       expect(link).toBeVisible()
-      expect(link).toHaveAttribute('href', '/login')
+      expect(link).toHaveAttribute('href', `/login?${queryString}`)
+    })
+  })
+
+  describe('when segments union type returned error', () => {
+    describe('when provider error', () => {
+      it('renders a error display message', async () => {
+        const impactedFileWithProviderError = {
+          ...mockImpactedFile,
+          segments: {
+            __typename: 'ProviderError',
+            message: 'Error fetching data from the provider',
+          },
+        }
+        setup({ impactedFile: impactedFileWithProviderError })
+        render(<CommitFileDiff path={'flag1/file.js'} />, { wrapper })
+
+        const errorMessage = await screen.findByText(
+          /There was a problem getting the source code from your provider. Unable to show line by line coverage/i
+        )
+        expect(errorMessage).toBeInTheDocument()
+      })
+    })
+
+    describe('when path error', () => {
+      it('renders a error display message for path error', async () => {
+        const impactedFileWithPathError = {
+          ...mockImpactedFile,
+          segments: {
+            __typename: 'UnknownPath',
+            message: 'Unknown path',
+          },
+        }
+        setup({ impactedFile: impactedFileWithPathError })
+        render(<CommitFileDiff path={'flag1/file.js'} />, { wrapper })
+
+        const errorMessage = await screen.findByText(
+          /There was a problem getting the source code from your provider by path for/i
+        )
+        expect(errorMessage).toBeInTheDocument()
+      })
     })
   })
 
@@ -449,7 +477,7 @@ describe('CommitFileDiff', () => {
     describe('when segment is an empty array', () => {
       const impactedFile = {
         ...mockImpactedFile,
-        isCriticalFile: false,
+
         headName: 'flag1/file.js',
         segments: {
           results: [],

@@ -2,25 +2,26 @@ import { createColumnHelper } from '@tanstack/react-table'
 
 import { RepositoryResult } from 'services/repos/ReposQueryOpts'
 import { formatTimeToNow } from 'shared/utils/dates'
+import { transformStringToLocalStorageKey } from 'shared/utils/transformStringToLocalStorageKey'
 import TotalsNumber from 'ui/TotalsNumber'
 
 import NoRepoCoverage from './NoRepoCoverage'
 
-import InactiveRepo from '../InactiveRepo'
 import RepoTitleLink from '../RepoTitleLink'
 
 export const getReposColumnsHelper = ({
-  inactive,
   isCurrentUserPartOfOrg,
   owner,
 }: {
-  inactive: boolean
   isCurrentUserPartOfOrg: boolean
   owner: string
 }) => {
   const columnHelper = createColumnHelper<
     RepositoryResult & { isDemo?: boolean }
   >()
+  const recentlyVisitedRepoName = localStorage.getItem(
+    `${transformStringToLocalStorageKey(owner)}_recently_visited`
+  )
   const nameColumn = columnHelper.accessor('name', {
     header: 'Name',
     id: 'name',
@@ -42,31 +43,13 @@ export const getReposColumnsHelper = ({
           showRepoOwner={!owner}
           pageName={pageName}
           disabledLink={!isCurrentUserPartOfOrg && !repo?.active}
+          isRecentlyVisited={
+            !!recentlyVisitedRepoName && recentlyVisitedRepoName === repo?.name
+          }
         />
       )
     },
   })
-
-  if (inactive) {
-    return [
-      nameColumn,
-      columnHelper.accessor('active', {
-        header: '',
-        id: 'inactiveRepo',
-        cell: (info) => {
-          const repo = info.row.original
-          return (
-            <InactiveRepo
-              owner={repo?.author?.username ?? ''}
-              repoName={repo?.name}
-              isCurrentUserPartOfOrg={isCurrentUserPartOfOrg}
-              isActive={false}
-            />
-          )
-        },
-      }),
-    ]
-  }
 
   return [
     nameColumn,
