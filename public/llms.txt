@@ -1,0 +1,19 @@
+# Athena
+
+> Athena is a self-hosted code-coverage and CI-insights platform. It ingests the coverage and test reports your CI pipelines produce and turns them into browsable reports per repository, branch, commit, and pull request, so a team can see what its tests actually cover and how that changes over time.
+
+Athena is a reporting and analysis layer over data CI already produces — it does not run
+tests itself. It is the self-hosted edition, which has no subscription, billing, or
+plan-management screens; user and access administration is handled through an
+installation administration area instead.
+
+Documentation is published as a single self-contained text file. There is no separate
+browsable documentation tree, so the links below both resolve to that one file.
+
+## Overview
+
+- [Athena — what it is and how teams use it](https://athena.sun-asterisk.vn/llms-full.txt): Product purpose, the questions Athena answers about a test suite, the three-step workflow teams follow, supported source-control providers (GitHub, GitLab, Bitbucket, plus Okta as an identity provider), and what the self-hosted edition omits versus a hosted subscription product. Read this first to decide whether Athena is relevant to a question.
+
+## Features
+
+- [Athena — enumerated feature list](https://athena.sun-asterisk.vn/llms-full.txt): Twenty-two user-visible capabilities grouped as coverage reporting (repository, file and line level, by flag, by component), change review (pull request, commit detail, commit history), bundle analysis, test analytics, repository setup and configuration, organization views, and account plus installation administration. Also states which screens are absent from the self-hosted build. Read this for specific capability questions.
