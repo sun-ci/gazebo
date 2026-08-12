@@ -10,7 +10,13 @@ FROM            alpine:3.17 as uploader
 USER            root
 WORKDIR         /tmp
 RUN             apk -U add gnupg curl
-RUN             curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --import
+# Codecov moved its Keybase account from codecovsecurity to codecovsecops. Fail
+# fast on a dead URL (-f) instead of piping an error page into gpg, and fall back
+# to a public keyserver so a Keybase outage cannot break the build.
+RUN             curl -fsSL https://keybase.io/codecovsecops/pgp_keys.asc | gpg --import || \
+                gpg --keyserver hkps://keyserver.ubuntu.com \
+                    --recv-keys 27034E7FDB850E0BBC2C62FF806BB28AED779869
+RUN             gpg --list-keys 27034E7FDB850E0BBC2C62FF806BB28AED779869
 RUN             mkdir uploader && \
                 mkdir uploader/linux && \
                 mkdir uploader/macos && \
