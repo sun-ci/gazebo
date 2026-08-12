@@ -1,0 +1,211 @@
+# Athena
+
+> Athena is a self-hosted code-coverage and CI-insights platform. It ingests the coverage and test reports your CI pipelines produce and turns them into browsable reports per repository, branch, commit, and pull request, so a team can see what its tests actually cover and how that changes over time.
+
+This is the complete Athena documentation in a single file. It describes the web
+application — the interface a user interacts with — at the level of user-visible
+capability, written from the application's own source at version 25.6.2. It deliberately
+does not describe server-side processing, data storage, request or response schemas, or
+internal service behavior.
+
+## Overview
+
+### Athena
+
+**Project**: Athena
+**Version**: 25.6.2
+
+> Athena is a self-hosted code-coverage and CI-insights platform. It ingests coverage
+> and test reports produced by your CI pipelines and turns them into browsable reports
+> at the repository, branch, commit, and pull-request level, so teams can see what their
+> tests actually cover and how that changes over time.
+
+#### What Athena is for
+
+Athena answers questions a team asks continuously about its own test suite:
+
+- How much of this repository is covered by tests, and which parts are not?
+- Did this pull request make coverage better or worse?
+- Which files and lines did this commit change, and were those lines tested?
+- Which tests are slow, flaky, or failing most often?
+- Is the JavaScript bundle we ship getting bigger?
+
+It is a reporting and analysis layer over data your CI already produces. Athena does not
+run your tests; your CI runs them and uploads the resulting reports to Athena.
+
+#### How teams use it
+
+1. Connect a source-control organization and pick the repositories to track.
+2. Configure the repository so CI uploads its coverage and test reports after each run.
+3. Read the results in Athena — per repository, per branch, per commit, per pull request.
+
+Once uploads are flowing, the day-to-day use is mostly reading pull-request and commit
+views to see the coverage impact of a change before it merges.
+
+#### Supported source-control providers
+
+Athena signs in against, and reads repository metadata from, the following providers:
+
+- GitHub
+- GitLab
+- Bitbucket
+
+Athena also supports Okta as an identity provider for organizations that use it.
+
+#### Self-hosted edition
+
+Athena is the self-hosted edition, which changes what the application presents compared
+with a hosted subscription product:
+
+- **No subscription, billing, or plan-management screens.** These are absent from the
+  self-hosted build rather than merely hidden.
+- **No seat-purchase or member-invitation billing flow.** User and access administration
+  is handled through the administration area instead.
+- **An administration area** is available to administrators for installation-wide
+  settings and user administration.
+- Sign-in is handled by the deployment's configured identity provider rather than a
+  public sign-up page.
+
+#### Scope of this document
+
+This document describes Athena's **web application** — the interface a user interacts
+with — at the level of user-visible capability. It is written from the web application's
+own source at version 25.6.2.
+
+It deliberately does **not** describe server-side processing, data storage, request or
+response schemas, or internal service behavior. Those are not part of the web
+application and are not documented here. Where this document says Athena "shows" or
+"requests" something, that is a statement about the interface only.
+
+#### Feature inventory
+
+See the feature list for the enumerated, user-visible capabilities and where each one
+appears in the interface.
+
+## Features
+
+### Feature List
+
+User-visible capabilities of the Athena web application, version 25.6.2.
+
+Each entry describes what a user can do in the interface. Availability notes reflect the
+**self-hosted** build, which omits some screens present in hosted subscription products.
+
+#### Coverage reporting
+
+##### F001 — Repository coverage overview
+The main view for a tracked repository: current coverage for the selected branch, a
+coverage trend over time, and a browsable file tree showing coverage per directory and
+per file. A sunburst-style visualization of coverage distribution is available.
+
+##### F002 — File and line-level coverage
+Open any file in a repository and read it with per-line coverage annotation, showing
+which lines are covered, uncovered, or partially covered.
+
+##### F003 — Coverage by flag
+Break coverage down by upload *flag*, so a repository whose CI uploads several separate
+reports (for example unit versus integration, or per language) can be read one slice at
+a time rather than only in aggregate.
+
+##### F004 — Coverage by component
+Break coverage down by *component* — a named grouping of paths defined in repository
+configuration — so ownership-based or subsystem-based coverage can be tracked separately.
+
+##### F005 — Branch selection
+Switch the branch a coverage view refers to, and compare the state of coverage between
+branches.
+
+#### Change review
+
+##### F006 — Pull request coverage review
+For a pull request: whether coverage rose or fell, an indirect-change breakdown, the
+files the pull request touched, and per-line coverage on those changes. This is the view
+used to judge coverage impact before merging.
+
+##### F007 — Commit detail
+For a single commit: its coverage totals, the files it changed, per-line coverage on the
+changed lines, and the upload(s) associated with that commit — including whether an
+expected upload is missing or failed to process.
+
+##### F008 — Commit history
+A list of a repository's commits with their coverage figures, so a regression can be
+traced back to the commit that introduced it.
+
+##### F009 — Pull request list
+A list of a repository's open and recent pull requests with their coverage status.
+
+#### Bundle analysis
+
+##### F010 — JavaScript bundle reports
+Track the size of shipped JavaScript bundles for a repository over time, per branch, and
+inspect an individual bundle's composition, so size regressions are visible.
+
+##### F011 — Bundler integration setup
+Guided setup for sending bundle data from a project's build, with instructions for
+several JavaScript build tools and frameworks, including Webpack, Rollup, Vite,
+SvelteKit, Nuxt, Remix, and SolidStart.
+
+#### Test analytics
+
+##### F012 — Test result reporting
+Reporting over uploaded test results for a repository — surfacing failure rates, flaky
+tests, and slow tests, so an unreliable or expensive test suite can be identified.
+
+#### Repository setup and configuration
+
+##### F013 — Repository onboarding
+Instructions for activating a repository and getting its first coverage upload working,
+including the upload token needed by CI.
+
+##### F014 — Repository configuration
+Per-repository settings, covering general options, the repository's YAML configuration,
+and the badges and graphs that can be embedded elsewhere (for example in a README).
+
+##### F015 — Coverage badges and graphs
+Generate embeddable coverage badges and graph images for a repository.
+
+#### Organization
+
+##### F016 — Organization repository list
+List the repositories in an organization with their coverage state, with search and
+filtering to find a repository.
+
+##### F017 — Provider synchronization
+Connect and re-synchronize a source-control organization so Athena sees the current set
+of repositories and their metadata.
+
+##### F018 — Organization analytics
+Aggregate coverage analytics across an organization's repositories, rather than one
+repository at a time.
+
+#### Account and administration
+
+##### F019 — Account settings
+Per-user account settings, including access tokens and the user's own profile and
+session settings.
+
+##### F020 — Installation administration *(self-hosted)*
+An administration area, available to administrators, for installation-wide settings and
+user administration. This replaces the seat-and-billing member management found in
+hosted subscription products.
+
+##### F021 — Seat usage visibility *(self-hosted)*
+Visibility into how many of the installation's licensed seats are in use.
+
+#### Optional and conditional features
+
+##### F022 — AI-assisted features *(not enabled by default)*
+An AI-assisted area exists in the application but is **disabled by default** and is only
+reachable when explicitly enabled for an installation. A default deployment does not
+surface it to users.
+
+#### Not present in the self-hosted build
+
+The following are absent from Athena rather than merely hidden, because the self-hosted
+build does not include a subscription model:
+
+- Subscription, billing, and plan-management screens.
+- Seat-purchase and member-invitation billing flows (see F020 for the administrative
+  alternative).
+- A public sign-up / sign-in page; sign-in uses the deployment's configured identity
+  provider instead.
