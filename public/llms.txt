@@ -1,19 +1,1109 @@
 # Athena
 
-> Athena is a self-hosted code-coverage and CI-insights platform. It ingests the coverage and test reports your CI pipelines produce and turns them into browsable reports per repository, branch, commit, and pull request, so a team can see what its tests actually cover and how that changes over time.
+> Athena is Sun*'s self-hosted code coverage service: teams upload coverage and test reports from CI or a local machine, then see per repository, pull request, commit, file and line what their tests actually cover.
 
-Athena is a reporting and analysis layer over data CI already produces — it does not run
-tests itself. It is the self-hosted edition, which has no subscription, billing, or
-plan-management screens; user and access administration is handled through an
-installation administration area instead.
+## General Introduction
 
-Documentation is published as a single self-contained text file. There is no separate
-browsable documentation tree, so the links below both resolve to that one file.
+**URL**: https://athena.sun-asterisk.vn
+**Department**: Sun* DevOps Platform (R&D Unit)
+**Owner**: DevOps Platform Team
+**Support contact**: Slack #con_sun-devsecops-platform-support-all — https://sun-asterisk.enterprise.slack.com/archives/C083TUY14AG
+**Surfaces**: web, cli
 
-## Overview
+Athena is Sun*'s self-hosted code coverage service: teams upload coverage and test reports from CI or a local machine, then see per repository, pull request, commit, file and line what their tests actually cover.
 
-- [Athena — what it is and how teams use it](https://athena.sun-asterisk.vn/llms-full.txt): Product purpose, the questions Athena answers about a test suite, the three-step workflow teams follow, supported source-control providers (GitHub, GitLab, Bitbucket, plus Okta as an identity provider), and what the self-hosted edition omits versus a hosted subscription product. Read this first to decide whether Athena is relevant to a question.
+## Installation
+
+### Installing the Codecov CLI for Athena
+
+Athena (`https://athena.sun-asterisk.vn`) is a self-hosted Codecov instance that Sun* R&D
+already runs. You don't install or operate Athena — you install a small client,
+`codecov-cli`, on your machine or in CI, point it at Athena, and upload your coverage
+(and optionally test-result) reports so they show up on the Athena web UI.
+
+Everything below was verified against **codecov-cli 11.3.1** (`pip install codecov-cli`,
+Python 3.9), by running the tool and reading its installed source, not from memory.
+
+#### Prerequisites
+
+- Python 3.8+ with `pip` (the tool ships as a Python package).
+- A repository already visible to Athena (ask your team/org admin if unsure).
+- A GitHub account tied to your Athena org (GitHub is Athena's only login provider).
+
+#### Install the CLI
+
+```bash
+pip install codecov-cli
+```
+
+Verify it installed:
+
+```bash
+codecovcli --version
+# codecovcli, version 11.3.1
+```
+
+The upstream project also ships a standalone compiled binary (`curl -Os
+https://cli.codecov.io/latest/<linux|macos>/codecov`) for machines without Python. This repo's
+own CI does not use that path, and this guide did not execute it — use `pip install` unless you
+have a specific reason to avoid Python.
+
+#### Point the CLI at Athena — the one step to get right
+
+Athena is **not** the public codecov.io SaaS. Every command must carry the `-u` /
+`--enterprise-url` / `--url` flag (all three are the same option), set to Athena's base URL,
+**before** the subcommand name:
+
+```bash
+codecovcli --url https://athena.sun-asterisk.vn do-upload ...
+```
+
+This is a global option on the `codecovcli` group, not on `do-upload` itself — putting it
+after the subcommand fails:
+
+```
+$ codecovcli do-upload --url https://athena.sun-asterisk.vn ...
+Error: No such option: --url
+```
+
+Confirmed by reading `codecov_cli/main.py`: `--enterprise-url`/`--url`/`-u` is declared on the
+top-level `cli` group and threaded through `ctx.obj["enterprise_url"]` into every subcommand.
+
+This is also what the Athena web UI itself already tells self-hosted users to do — its
+"Other CI" onboarding page appends `-u <your Athena URL>` to the command whenever the instance
+is self-hosted. It's exactly what this repo's own CI does:
+`.github/workflows/ci.yml` — `codecovcli -u ${{ secrets.CODECOV_URL }} do-upload -t ${{
+secrets.CODECOV_ORG_TOKEN }} --fail-on-error...`.
+
+There is no environment variable for the URL — `-u`/`--url`/`--enterprise-url` must be passed
+explicitly every time (confirmed: it has no `envvar=` binding in the installed source).
+
+#### Get your upload token
+
+Athena needs a token to accept an upload for a private (non-public) repo. There are two kinds;
+both surface in the Athena web UI:
+
+##### Repository upload token (per-repo)
+
+Go to **your repo → Settings → General** (route `/:provider/:owner/:repo/config/general`). The
+"Tokens" section shows a card titled **"Repository upload token"** with a copy-ready
+`CODECOV_TOKEN=<token>` snippet and a **Regenerate** button.
+
+The same token is what the onboarding wizard shows on a brand-new repo, under **Step 2/3: add
+token**, in both the GitHub Actions and "Other CI" paths.
+
+##### Organization (global) upload token
+
+Go to **Account Settings → your org → Global Upload Token** (route
+`/account/:provider/:owner/org-upload-token`). This single token authorizes uploads for *every*
+repo in the org — treat it as more sensitive than a repo token.
+
+Either token is passed the same way to the CLI: as `-t <token>` on the command, or via the
+`CODECOV_TOKEN` environment variable (verified: the `-t`/`--token` option is declared with
+`envvar="TOKEN"` and gets the `CODECOV_` brand prefix added at runtime in
+`codecov_cli/fallbacks.py`, so the real variable name is `CODECOV_TOKEN`).
+
+If your org has disabled "upload token required," a token isn't strictly needed, but using one
+is still the default expectation — this guide assumes tokens are required.
+
+#### Upload coverage from your local machine
+
+Minimal working sequence (adjust the coverage file glob to your test runner's output):
+
+```bash
+export CODECOV_TOKEN=<your-repo-or-org-token>
+
+# run your tests so a coverage.xml / lcov.info / etc. exists, then:
+codecovcli --url https://athena.sun-asterisk.vn do-upload \
+  --git-service github \
+  --slug <owner>/<repo>
+```
+
+`do-upload` auto-discovers coverage files in the current directory (Cobertura XML, LCOV, and
+others); pass `-f <path>` to add an explicit file, or `--disable-search -f <path>` to upload
+only that file. Both were confirmed against `codecovcli do-upload --help` and a live dry run
+(`-d`) against `https://athena.sun-asterisk.vn`, which returned a real API error
+(`{"detail":"Not valid tokenless upload"}`) — proving the URL, not a placeholder, is reachable.
+
+`--slug owner/repo` (or `CODECOV_SLUG` env var) is only needed when the CLI can't detect it from
+git remotes/CI env — verified via `codecovcli create-commit --help` (`-r, --slug`).
+
+#### Upload coverage from CI
+
+##### GitHub Actions
+
+This is what this repo's own pipeline does (`.github/workflows/ci.yml`), trimmed to the generic
+case:
+
+```yaml
+      - name: Install codecov-cli
+        run: pip install codecov-cli
+
+      - name: Upload coverage to Athena
+        run: |
+          codecovcli --url ${{ secrets.CODECOV_URL }} do-upload \
+            -t ${{ secrets.CODECOV_TOKEN }} \
+            --fail-on-error \
+            --name "ci-${{ github.run_id }}"
+```
+
+Store the base URL (`https://athena.sun-asterisk.vn`) and the token as repo/org **secrets**
+(`CODECOV_URL`, `CODECOV_TOKEN`) — never commit them. On a GitHub Actions runner the CLI
+auto-detects commit SHA, branch, and PR number from `GITHUB_SHA`/`GITHUB_REF` (confirmed in
+`codecov_cli/helpers/ci_adapters/github_actions.py`), so you don't need `-C`/`-B`/`-P` there.
+
+##### GitLab CI
+
+Same flags, GitLab auto-detection works the same way (`CI_COMMIT_SHA`, `CI_JOB_ID`, etc., per
+`codecov_cli/helpers/ci_adapters/gitlab_ci.py`):
+
+```yaml
+upload-coverage:
+  stage: test
+  script:
+    - pip install codecov-cli
+    - codecovcli --url $CODECOV_URL do-upload -t $CODECOV_TOKEN --fail-on-error
+  variables:
+    CODECOV_URL: "https://athena.sun-asterisk.vn"
+  # CODECOV_TOKEN set as a masked/protected CI/CD variable in GitLab settings
+```
+
+This repo has no GitLab pipeline to cite (it's a GitHub-only project); the flags above are the
+same ones verified in the local-machine and GitHub Actions sections.
+
+#### Upload test results
+
+`do-upload` also accepts JUnit-style XML test-result files, verified with a live dry run:
+
+```bash
+codecovcli --url https://athena.sun-asterisk.vn do-upload \
+  -t $CODECOV_TOKEN \
+  --report-type test_results \
+  --disable-search -f junit.xml
+```
+
+`--report-type [coverage|test_results]` was confirmed in `do-upload --help` (default:
+`coverage`). A separate command, `process-test-results`, only reads test-result files locally to
+post a PR comment (`--github-token`) — it does not itself upload to Athena, and is not required
+for the upload above.
+
+This repo's own CI instead uses the official `codecov/test-results-action@v1` GitHub Action for
+this (`.github/workflows/ci.yml`), which wraps the same upload call and needs the same two
+inputs — `token` and `url`:
+
+```yaml
+      - uses: codecov/test-results-action@v1
+        with:
+          token: <CODECOV_TOKEN repository secret>
+          url: <CODECOV_URL repository secret>
+```
+
+Both placeholders above stand for GitHub Actions secret references. In a real workflow you write
+them in the usual secrets form — `${{ secrets.NAME }}` — with the secret names you configured for
+the repository.
+
+#### Confirming the upload landed
+
+- The CLI itself prints `Upload queued for processing complete` (or an `error -` line with the
+  reason if it failed). Add `--fail-on-error` in CI so a bad upload fails the job instead of
+  passing silently — confirmed as a real flag on every subcommand.
+- On Athena, open your repo's page at `https://athena.sun-asterisk.vn/<provider>/<owner>/<repo>`
+  — a new commit/PR should appear with a coverage percentage within a minute or two of upload.
+- On a pull request, Athena posts a coverage comment once both the base and head commits have
+  reports (this is standard Codecov behavior — not independently re-verified in this session).
+
+#### What this guide didn't verify
+
+- The standalone binary install path (`cli.codecov.io`) — documented upstream, not executed here
+  (no outbound network access to test it in this sandbox).
+- Behavior of `--auto-load-params-from` and provider auto-detection on runners other than local/
+  GitHub Actions/GitLab CI (Bitbucket, CircleCI, etc.) — the option exists (seen in
+  `codecovcli --help`), but only GitHub Actions and GitLab CI detection code was read.
+- Whether Athena enforces "upload token required" org-wide by default — that's a per-org toggle
+  in the product, not something the CLI fixes.
+
+## Usage Guide
+
+### Athena — End-User Usage Guide
+
+Athena is the web app at https://athena.sun-asterisk.vn where a developer signs in with their
+Git provider, connects a repository, and reads what their tests actually cover — down to the
+line. This guide walks through every screen a day-to-day user touches: sign-in, onboarding a
+repo, reading coverage, reviewing a pull request, reading a commit, flags/components, bundle
+analysis, test analytics, and repository configuration.
+
+#### Signing in
+
+**GitHub is the only way to sign in to Athena.** This instance has only GitHub configured as a
+login provider, so that is the single option you are offered.
+
+Because Athena is self-hosted there is no `/login` screen at all: both `/login` and
+`/login/:provider` redirect to `/`. The front door is the Athena landing page at `/`, which
+shows one card per configured provider. On Athena that means a single **GitHub** card with a
+**"Login via GitHub"** button. Clicking it sends you to github.com to authenticate.
+
+There is no GitLab, Bitbucket, or Okta card here, and no Sentry option anywhere — Sentry is a
+Codecov-cloud-only provider that does not exist on a self-hosted build. The card list is not
+hard-coded, though: the page reads the instance's `loginProviders` config over GraphQL and can
+render GitHub, GitLab, Bitbucket, or Okta. If an admin configures another provider later, its
+card appears without any frontend change.
+
+After authenticating for the first time, Athena shows **"What repo provider would you like to
+sync?"** with a **"Sync with <Provider>"** button per configured provider — on Athena, just
+GitHub. If no provider is configured, the page shows instead: *"Unable to retrieve list of Git
+providers, please configure one in your Codecov config YAML"* with a link to the Self-Hosted
+install guide. Once you've synced at least one provider, this page is skipped on future logins
+— you're redirected straight to your provider's namespace.
+
+Because this build runs self-hosted (deployed with `ENV=enterprise`), the GitHub OAuth
+app used is `sun-codecov-self-hosted`, not the public Codecov app — this only matters if an
+admin is wiring up the GitHub App; end users see no difference in the sign-in flow itself.
+
+#### Getting a repository into Athena
+
+Once synced, your org's repo list appears on the owner page.
+Selecting a repository that has never received a coverage upload lands you on the **Coverage
+Analytics** onboarding screen, which explains: *"Codecov analyzes your coverage reports to help
+you identify untested code... ensure your project generates coverage reports, as Codecov relies
+on these reports."*
+
+You pick a CI setup path from **"Select a setup option"**:
+- **Using Codecov's CLI (Recommended)**
+- **Using GitHub Actions**
+- **Using Circle CI**
+
+Each path walks you through: outputting a coverage report in your test framework (Jest, Vitest,
+Pytest, or Go), adding your repo's upload token to CI, adding the upload step to your CI
+config, and merging the change. If your repository is private and you aren't yet activated on
+it, an activation banner appears above the setup steps.
+
+Once the first report is uploaded, Athena's coverage/build tabs unlock automatically — there is
+no separate "activate" click for coverage itself, beyond having your first upload land.
+
+#### Reading coverage
+
+##### Repository level — Overview / Flags / Components
+
+The **Coverage** tab (repo-level) has a sub-navigation with three views — **Overview**,
+**Flags**, **Components** — shown as radio tiles. The default is **Overview**, which shows: a
+coverage summary, a coverage trend chart with a **"Show charts / Hide charts"** toggle, an
+optional sunburst chart (file-size-weighted coverage map, shown only when the repo has at most
+200,000 files and the `SUNBURST_ENABLED` flag is on), and — below that — either the file tree
+or a single file's contents depending on the URL.
+
+##### By branch
+
+A branch selector lets you switch which branch's coverage you're viewing; the URL pattern is
+`/tree/:branch` (header branch selector in `CoverageTab/ComponentsTab/Header/BranchSelector`).
+Selecting "All branches" elsewhere in the app (commits/tests tabs) is represented by a special
+`ALL_BRANCHES` value used by the same branch pickers.
+
+##### Down the file tree
+
+Navigating into a folder shows files and folders with coverage percentages. Clicking a file
+opens the file viewer at `/blob/:ref/:path`.
+
+##### Line by line in a file
+
+The file viewer highlights every source line with one of three states:
+
+| State | Meaning | Color cue |
+|---|---|---|
+| **Covered** | at least one test executed this line | green background |
+| **Uncovered (Miss)** | no test executed this line | red background + red right border |
+| **Partial** | line executed but not every branch/path inside it was (e.g. only one side of an `if`) | yellow/orange background + dotted right border |
+
+The same three labels ("covered", "uncovered", "partial") appear again as a legend/selector in
+the file viewer's toolbar. Diff views (used on PR and commit file viewers) add a second gutter
+column for old/new line numbers.
+
+#### Reviewing a pull request
+
+Opening a PR in Athena shows a summary bar with three coverage numbers — **HEAD**, **Patch**,
+and **Change** — plus a comparison line describing which head/base commits and how many report
+uploads back that comparison, and warnings if head and base have a mismatched number of uploads
+or if the most recent commit's report processing errored. A dropdown line reads e.g. *"Coverage
+report: 3 lines in your changes are missing coverage"* or *"all modified lines are covered by
+tests"*.
+
+Below the summary, tabs let you drill in:
+
+- **Files changed** — the diff view of every file your PR touched, with per-line coverage
+  coloring, and a count badge.
+- **Indirect changes** — files you didn't edit but whose coverage numbers moved anyway. A
+  banner explains: *"These are files that didn't have author revisions, but contain unexpected
+  coverage changes"*.
+- **Commits** — every commit in the PR and its individual coverage status.
+- **Flags** — coverage broken down by flag, filterable via the URL's `flags` query param.
+- **Components** — coverage broken down by component (see below); if none are configured, a
+  placeholder screen invites you to learn how components help.
+- **File explorer** — the same tree/file browser as the repo Coverage tab, scoped to this PR's
+  head commit.
+
+(On repos under the Team plan, private-repo PRs show a reduced tab set — just **Files
+changed**, **Commits**, **File explorer**.)
+
+#### Looking at a single commit
+
+The commit detail page mirrors the PR page's shape: a coverage summary, then tabs for **Files
+changed**, **Indirect changes** (hidden for private Team-plan repos), and **File explorer**.
+
+A **"Coverage reports history"** card lists every report upload that fed this commit, grouped
+by CI provider, with checkboxes to select/deselect uploads (for recalculating coverage with a
+subset) and filters for **flag errors** / **upload errors** plus a search box. A **"view YAML
+file"** link opens a modal showing the exact YAML that applied to this commit — *"Includes
+default YAML, global YAML, and repo"* config, merged together; if that YAML was invalid, a red
+warning icon appears next to the link.
+
+#### Flags and components
+
+**Flags** and **components** are two ways to slice a repo's coverage numbers without splitting
+the repo itself.
+
+- A **flag** tags an individual coverage upload (e.g. `unittests`, `integration`) — you assign
+  it in your CI/CLI upload command and in `codecov.yml`, not in the Athena UI. Athena only
+  *displays* flags (a **Flags** table with name, coverage %, and a trend sparkline) and lets an
+  admin delete a stale flag's *data* from the UI — deleting from the UI does not stop future
+  uploads from recreating it; the modal explicitly says: *"You will also need to remove this
+  flag in your CI and codecov.yaml to stop uploads"*.
+- A **component** groups coverage by file path (or by flag) — defined entirely in `codecov.yml`
+  under `component_management`, never created from the UI. Athena shows a **Components** table
+  the same shape as Flags. If a repo has just turned on components, a **"Enable component
+  analytics"** button backfills historical data before the table populates.
+
+This repository's own `codecov.yml` is a working example (see below) — it defines six
+components (Assets, Layouts, Pages, Services, Shared, UI), each mapped to a `src/**` subfolder
+(`codecov.yml`).
+
+#### Bundle analysis
+
+The **Bundles** tab reports JavaScript/TypeScript bundle size: total size, per-asset and
+per-module breakdown, and size trend across commits. It only appears in the repo's tab bar once
+the repo has JS/TS files and you're in the org, or once bundle analysis is actually enabled.
+
+Getting bundle data requires backend/CI work first: the onboarding screen asks you to pick your
+bundler — **Vite, Rollup, Webpack, Remix (Vite), Nuxt, SvelteKit, or SolidStart** — then walks
+through installing that bundler's Codecov plugin and wiring your upload token; a repo with no
+upload token yet is redirected away from this screen entirely. There's no codecov.yml-only path
+here — a bundler plugin must run in your build.
+
+#### Test analytics / failed tests
+
+The **Tests** tab (badged **"New"**) reports, once enabled: total test run time, slowest tests
+(95th-percentile+ runtime, capped at 100 tests shown), flaky test count and average flake rate,
+cumulative failures, and skipped tests — each as a metric card with a tooltip explaining
+exactly what it counts. Below that, a sortable **failed tests table** lists test name, avg.
+duration, failure rate, flake rate (with a tooltip breakdown of pass/fail/flaky/skip counts),
+commits failed, and last run time. Flake detection itself is a repo config switch, not a UI
+toggle — this repo's `codecov.yml` turns it on with `test_analytics.flake_detection: true`
+(`codecov.yml`); the flake-rate column and cards only render when that's active.
+
+Before any of this appears, the tab shows a **Test Analytics** onboarding screen: *"offers data
+on test run times, failure rates, and identifies flaky tests..."*, then **"Select a setup
+option"** — **Using GitHub Actions** or **Using Codecov's CLI**. Step 1 in either path is:
+*"Output a JUnit XML file in your CI"*, with a framework picker to generate that XML. Test
+analytics cannot show anything until your CI actually produces and uploads that JUnit XML.
+
+#### Configuring a repository in the UI
+
+The **Configuration** tab (visible only if you're a member of the owning org) has four sections
+in a sidebar:
+
+- **Configuration Manager** — a checklist-style landing page: Coverage (reports, YAML, project
+  status, flags, components), Test analytics, Bundle analysis (JS/TS repos only, plus a
+  "Configure data caching" button), and a fixed list of Codecov integrations (VS Code
+  extension, browser extension, Slack app) — each row shows configured/not-configured plus a
+  "get started" link.
+- **General** — shows/change the default branch, your repository upload token (with a
+  **Regenerate** button) and, behind a feature flag, a static-analysis token; and a **Danger
+  Zone** with **Deactivate** (stops accepting uploads) and **Erase repository**.
+- **YAML** — shows the repo's current effective YAML, repo settings (bot username, default
+  branch), a **"Validate the YAML"** shell one-liner that POSTs your `codecov.yml` to
+  `https://codecov.io/validate`, and a **Secret string** generator for encrypting sensitive
+  values you want to paste into `codecov.yml` in the clear.
+- **Badges & Graphs** — copy-paste snippets (Markdown / HTML / RST) for a live coverage badge
+  you can drop in a README, optionally scoped to one branch.
+
+#### The `codecov.yml` file
+
+`codecov.yml` lives at your repository root and is what actually turns on/tunes most of what's
+described above. From this repo's own file:
+
+- **`coverage.range` / `coverage.precision` / `coverage.round`** — the green/yellow/red
+  thresholds and how percentages are displayed (`codecov.yml`).
+- **`coverage.status`** — turns project- and patch-level status checks on/off (`codecov.yml`).
+- **`comment.layout`** — controls what the PR comment includes: `diff, flags, files,
+  components, footer` (`codecov.yml`).
+- **`ignore`** — file globs excluded entirely (Storybook files, mocks, generated files) from
+  analysis (`codecov.yml`).
+- **`component_management.individual_components`** — the components you'll see in the
+  Components tab; this repo defines `dir_assets`, `dir_layouts`, `dir_pages`, `dir_services`,
+  `dir_shared`, `dir_ui`, each mapped to one `src/**` folder (`codecov.yml`).
+- **`test_analytics.flake_detection`** — set to `true` here, which is what turns on flake rate
+  in the Tests tab (`codecov.yml`).
+
+Athena's YAML tab (above) is where you view the effective merged config and validate a new draft
+before committing it — you still edit and commit the file yourself in your repo.
+
+#### Organization-level views and member administration
+
+At the org level (`/:provider/:owner`), the tab bar is **Repos**, **Analytics**, optionally
+**Codecov AI** (beta, behind a flag), and **Settings** — plus, only when *not* self-hosted,
+**Members** and **Plan**.
+
+- **Repos** — your organization's repository list.
+- **Analytics** — an org-wide coverage chart plus the same repo table, filterable by repo and
+  date range.
+- **Settings** — on self-hosted this is: **Profile** (your own account,
+  only when viewing your own settings), a personal-access-token tab (hidden if the instance
+  sets `HIDE_ACCESS_TAB`), a **Global YAML** tab, and, if you're an org admin, an **Org upload
+  token** tab.
+
+#### Not available in this self-hosted build
+
+Two full pages redirect you away immediately because this instance is self-hosted:
+
+- **Plan / billing** — redirects straight back to your org page. There is no
+  upgrade/invoices/payment UI in this build.
+- **Members (self-service)** — redirects straight back to your org page as well.
+
+Both tabs are also removed from every org-level tab bar for the same reason.
+
+Member and admin management instead happens through a separate **Admin** area at
+`/admin/:provider`, visible only to instance admins:
+
+- **Administrator Access** — lists install-wide admins; changing them is done by editing
+  `install.yml`, not from this screen — *"Admins can be edited in the install.yml"*. On
+  self-hosted, the account-settings sidebar also hides the personal-access-token tab whenever
+  the instance sets `HIDE_ACCESS_TAB=true`.
+- **Account Members** — activation info plus the full member list for the instance, with
+  activate/deactivate controls.
+
+## Screens
+
+### Athena — Screen Tour
+
+Every screen a user of Athena (https://athena.sun-asterisk.vn) can reach, organized by its 16
+top-level areas. This is the map of places — for how the flows between them work (signing in,
+onboarding a repo, reading coverage, reviewing a PR), see the **Usage Guide** section above;
+this page won't repeat that.
+
+Screen codes (`SCR###`) are the stable identifier for each screen, used throughout this
+document. Where several `SCR###` codes are really one place a user picks a variant of (a
+bundler, a CI provider), they're described once with the variant names on one line.
+
+This build runs self-hosted (deployed with `ENV=enterprise`). Every screen below
+states plainly whether Athena's users can reach it in this build.
+
+#### 1. LoginPage (SCR001)
+
+**"Login to Athena"** — `/login/:provider`, `/login`.
+**Access:** public, logged out only.
+**Purpose:** in upstream Codecov, pick a Git provider (GitHub, Sentry, Bitbucket, GitLab) and
+start OAuth. Athena offers none of this — see EnterpriseLandingPage below.
+**Actions:** click a provider button.
+**Not in this build** — self-hosted redirects `/login` and `/login/:provider` straight to `/`;
+Athena's users land on EnterpriseLandingPage (below) instead.
+
+#### 2. SyncProviderPage (SCR002)
+
+**"What repo provider would you like to sync?"** — `/sync`, exact.
+**Access:** signed-in user with no synced provider yet.
+**Purpose:** first-login interstitial to sync your VCS account before Athena can list your repos.
+**Actions:** click **"Sync with `<Provider>`"** per configured provider — on Athena that is
+**"Sync with GitHub"** and nothing else. Skipped automatically on later logins once at least one
+provider is synced.
+**Sub-tabs:** none.
+
+#### 3. EnterpriseLandingPage (SCR007)
+
+No page title, just a provider-picker banner — `/`, exact, self-hosted only.
+**Access:** public. This is Athena's real front door — on non-self-hosted instances `/`
+redirects elsewhere instead, which is why this screen only exists here.
+**Purpose:** entry point that lists the configured Git providers as clickable cards. The list
+comes from the instance's `loginProviders` config; on Athena only GitHub is configured, so the
+GitHub card is the only one that renders.
+**Actions:** click a provider card to start OAuth; auto-redirects onward once a provider
+session already exists.
+**Sub-tabs:** none.
+
+#### 4. OwnerPage (SCR006)
+
+**"Repos"** tab of the org landing page — `/:provider/:owner`, exact.
+**Access:** any signed-in user who can see the org (shows NotFound, SCR058, if not).
+**Purpose:** lists the organization's repositories, with onboarding banners for new orgs.
+**Actions:** click a repo row to open it; the org-level tab bar sits above the list.
+**Sub-tabs:** **Repos**, **Analytics**, optionally **Codecov AI** (beta, feature-flagged),
+**Settings** — and, only when *not* self-hosted, **Members** and **Plan**. On Athena, the
+Members and Plan tabs never render; see §7 and §8.
+
+#### 5. AnalyticsPage (SCR004)
+
+**"Analytics"** tab — `/analytics/:provider/:owner`, exact.
+**Access:** any signed-in org member; renders NotFound if the owner can't be loaded.
+**Purpose:** org-wide coverage/usage chart plus the same repo list, filterable.
+**Actions:** change date range and repo filters; sort the repo table.
+**Sub-tabs:** same tab bar as OwnerPage.
+
+#### 6. CodecovAIPage (SCR005)
+
+**"Codecov AI"** tab — `/codecovai/:provider/:owner`, exact.
+**Access:** any signed-in org member, only reachable while the `codecovAiFeaturesTab` flag is
+on — otherwise the tab itself doesn't appear.
+**Purpose:** install/configure the Codecov AI assistant for the org's repos.
+**Actions:** install the AI app, view which repos have it configured.
+**Sub-tabs:** same tab bar as OwnerPage.
+
+#### 7. MembersPage (SCR003) — not available in this build
+
+**"Manage members"** — `/members/:provider/:owner`.
+**Access:** would be org admins, non-self-hosted only.
+**Not in this build** — the page redirects to `/:provider/:owner` on a self-hosted instance,
+and the route itself is never registered there. The
+**Members** tab is also removed from every org-level tab bar for the same reason.
+
+#### 8. PlanPage family (SCR016–SCR022) — not available in this build
+
+Billing has no UI on self-hosted at all: every route under `/plan/:provider/:owner*`
+redirects back to the org page — on a self-hosted instance, or when you aren't a member of the
+org — and the **Plan** tab is removed from every org-level tab bar. The pages that would exist behind that gate, for completeness:
+
+- **Current plan** (SCR016, `/plan/:provider/:owner`) — billing summary, invoices, payment card.
+- **Upgrade plan** (SCR017, `/plan/:provider/:owner/upgrade`) — Pro/Team/Sentry checkout.
+- **Invoices** (SCR018, `/plan/:provider/:owner/invoices`) + **invoice detail** (SCR019, `/invoices/:id`) — invoice history and line items.
+- **Downgrade to Basic** (SCR020, `/plan/:provider/:owner/cancel/downgrade`) — cancellation confirm.
+- **Cancel-plan retention offer** (SCR021 Team-plan offer / SCR022 generic discount offer, both
+  `/plan/:provider/:owner/cancel`, mutually exclusive by eligibility) — shown before a
+  downgrade completes.
+
+None of these render for an Athena user; there is no upgrade, invoice, or payment screen to reach.
+
+#### 9. AccountSettings (SCR008–SCR013)
+
+Shell at `/account/:provider/:owner/*`, with a left sidebar listing the tabs below.
+
+##### Profile / Admin (account-index variant swap)
+`/account/:provider/:owner/`, exact.
+**Access + variant:** on self-hosted, viewing your own settings shows **Profile** (SCR008) —
+name, email, activation banner; the **Admin** (SCR009) variant is a non-self-hosted-only
+screen and never renders here; viewing
+someone else's settings redirects to Global YAML instead.
+**Actions:** update your name/email.
+
+##### Okta Access (SCR010)
+`/account/:provider/:owner/okta-access/`, exact.
+**Access:** only reachable when the org's plan is flagged Enterprise — independent of
+self-hosted status.
+**Purpose:** configure Okta SSO for the org. **Actions:** edit and save the Okta config form.
+
+##### Global YAML (SCR011)
+**"Global YAML"** — `/account/:provider/:owner/yaml/`, exact.
+**Access:** any signed-in user viewing this account-settings area; it's also the fallback
+redirect target when neither Profile nor Admin applies.
+**Purpose:** edit the org's default `codecov.yml` override. **Actions:** edit YAML, save (shows a
+success modal).
+
+##### Access — tokens & sessions (SCR012)
+**"Access"** — `/account/:provider/:owner/access/`, exact.
+**Access:** on self-hosted, present unless the instance hides it (see below).
+`HIDE_ACCESS_TAB` has no hard-coded default — it's an instance-level env setting; **if the
+Athena admin sets `HIDE_ACCESS_TAB=true`, this screen and its sidebar link disappear entirely
+for every user.**
+**Purpose:** manage your personal-access tokens and active login sessions.
+**Actions:** create/revoke a token, end a session.
+**Not found under this shell** falls through to NotFound (SCR058).
+
+##### Org Upload Token (SCR013)
+**"Global upload token"** — `/account/:provider/:owner/org-upload-token`, exact, admin-only.
+**Purpose:** generate/regenerate the org-wide upload token.
+**Actions:** **Generate**/**Regenerate** (behind a confirm modal); non-admins hitting this URL
+redirect to Global YAML.
+
+#### 10. AdminSettings (SCR014–SCR015) — self-hosted only
+
+Shell at `/admin/:provider`, registered only on self-hosted instances; non-admins are
+redirected to `/:provider`. This is where Athena's own member/admin management lives, since the
+org-level Members tab (§7) doesn't exist here.
+
+##### Administrator Access (SCR014)
+`/admin/:provider/access`, exact.
+**Access:** instance admins only.
+**Purpose:** view the install-wide admin list.
+**Actions:** none in the UI — the page says admins are edited by hand in `install.yml`.
+**Sub-tabs:** sidebar links to **Access** / **Users**.
+
+##### Account Members (SCR015)
+`/admin/:provider/users`, exact.
+**Access:** instance admins only.
+**Purpose:** instance-wide seat/license usage and the full member list.
+**Actions:** activate/deactivate a member's seat.
+
+#### 11. RepoPage (SCR034–SCR057) — the biggest page
+
+Shell at `/:provider/:owner/:repo/*`; the repo tab bar itself is built from repo state —
+**Coverage** shows once coverage is enabled or you're in the org, **Bundles** shows once JS/TS
+is detected or bundle analysis is on, **Tests** shows once test analytics is on or you're in
+the org, **Commits**/**Pulls** need a product enabled plus repo-view authorization,
+**Configuration** needs org membership. A repo that's active but not yet **activated** shows
+DeactivatedRepo (SCR057, below) on `/:repo` and `/:repo/bundles` instead of any tab content; a
+repo not yet active at all only exposes onboarding + Config.
+
+##### Coverage — Overview (SCR034)
+**"Coverage" → "Overview"** — `/:repo`, plus `/tree/:branch`, `/blob/:ref/:path`. **Purpose:**
+repo coverage summary, trend chart, optional sunburst, and a file browser underneath — detailed
+in the Usage Guide's "Reading coverage"; not repeated here.
+**Sub-nav:** **Overview** / **Flags** / **Components** radio tiles.
+
+##### Coverage — Flags (SCR035)
+`/:repo/flags`, `/:repo/flags/:branch`. **Purpose:** per-flag coverage table, with backfill/sync
+banners. **Actions:** an admin can delete a flag's stored data (does not stop future uploads —
+see the Usage Guide's "Flags and components").
+
+##### Coverage — Components (SCR036)
+`/:repo/components`, `/:repo/components/:branch`. **Purpose:** per-component coverage table,
+same shape as Flags. **Actions:** delete a component's measurements; "Enable component analytics"
+backfill button on first turn-on.
+
+##### Coverage setup ("Coverage Analytics" onboarding, SCR037–SCR039)
+`/:repo/new` (default), shown instead of Overview when coverage isn't enabled yet. **"Select a
+setup option"** picks the variant: **Using Codecov's CLI (Recommended)** (routes to
+`/new/other-ci`), **Using GitHub Actions** (`/new`), **Using Circle CI** (`/new/circle-ci`).
+Each walks through outputting a coverage report, adding the repo's upload token to CI, and
+merging — see the Usage Guide's "Getting a repository into Athena".
+
+##### Bundles (SCR040)
+`/:repo/bundles`, `/:repo/bundles/:branch`, `/:repo/bundles/:branch/:bundle` — only rendered
+once `bundleAnalysisEnabled`. **Purpose:** bundle size trend chart plus a per-asset breakdown
+table.
+**Actions:** pick a point on the trend chart to drill into that bundle's assets.
+
+##### Bundle setup onboarding (SCR041–SCR047)
+`/:repo/bundles/new` (default) and its bundler variants, shown when JS/TS is present but bundle
+analysis isn't enabled yet. **"Select your bundler"** picks: **Using Vite** (default),
+**Rollup**, **Webpack**, **Remix (Vite)**, **Nuxt**, **SvelteKit**, **SolidStart**. A repo with
+no upload token yet is redirected away from this screen entirely.
+
+##### Tests (SCR048)
+**"Tests"** (badged **New**) — `/:repo/tests`, `/:repo/tests/:branch`; shown once test
+analytics is enabled, else the onboarding below.
+**Purpose:** test-run metrics (slowest tests, flake rate, failures) plus a sortable
+failed-tests table — detailed in the Usage Guide's "Test analytics / failed tests". Private
+repos you
+aren't activated on see an activation prompt instead.
+
+##### Tests setup onboarding (SCR049–SCR050)
+`/:repo/tests/new` (default) and `/:repo/tests/new/codecov-cli`. **"Select a setup option"**
+picks: **Using GitHub Actions** or **Using Codecov's CLI**; both start with "Output a JUnit XML
+file in your CI".
+
+##### Commits (SCR051)
+`/:repo/commits`, `/:repo/commits/:branch` — needs a product enabled and repo-view
+authorization. **Purpose:** commit list with per-commit coverage status.
+**Actions:** click a commit row to open its detail page (§13).
+
+##### Pulls (SCR052)
+`/:repo/pulls` — same gate as Commits. **Purpose:** pull-request list with per-PR coverage
+status. **Actions:** click a row to open the PR page (§12).
+
+##### Configuration Manager (SCR053)
+`/:repo/config`, exact. **Access:** org members only — non-members hit NotFound (SCR058)
+instead.
+**Purpose:** checklist landing page of what's configured — coverage, tests, bundles, integrations.
+**Sub-tabs (sidebar):** **Configuration Manager**, **General**, **YAML**, **Badges & Graphs** —
+see the Usage Guide's "Configuring a repository in the UI" for what each does.
+
+##### General (SCR054)
+`/:repo/config/general`. Default branch, upload token (**Regenerate**), and a **Danger Zone**
+with **Deactivate** and **Erase repository**.
+
+##### YAML (SCR055)
+`/:repo/config/yaml`. The repo's effective YAML, a **"Validate the YAML"** shell one-liner, and a
+**Secret string** generator.
+
+##### Badges & Graphs (SCR056)
+`/:repo/config/badge`. Copy-paste Markdown/HTML/RST snippets for a README coverage badge.
+
+##### DeactivatedRepo state (SCR057)
+Same routes as Overview/Bundles (`/:repo`, `/:repo/bundles`), swapped in when `isRepoActive &&
+!isRepoActivated`. **"This repository has been deactivated"** — org members get a link to
+Configuration → General to reactivate it; everyone else is told to ask their git-org admin for
+write access.
+
+#### 12. PullRequestPage (SCR023–SCR029)
+
+Shell at `/:provider/:owner/:repo/pull/:pullId*`. The coverage summary bar (HEAD/Patch/Change
+numbers) is shared across every tab below and is covered in the Usage Guide's "Reviewing a
+pull request" — not repeated here.
+
+##### Files changed (SCR029, default tab)
+`pull/:pullId`, exact. **Purpose:** diff view of every changed file with per-line coverage
+coloring and a change count badge.
+
+##### Indirect changes (SCR025)
+`pull/:pullId/indirect-changes`, exact. **Purpose:** files that moved coverage without being
+edited by this PR.
+
+##### Commits (SCR026)
+`pull/:pullId/commits`, exact. **Purpose:** every commit included in the PR, each with its own
+coverage status.
+
+##### Flags (SCR027)
+`pull/:pullId/flags`, exact. **Purpose:** per-flag coverage breakdown for the PR, filterable by
+the URL's `flags` query param.
+
+##### Components (SCR028)
+`pull/:pullId/components`, exact. **Purpose:** per-component coverage breakdown; shows a
+placeholder inviting you to configure components if none exist.
+
+##### File explorer (SCR023 tree + SCR024 blob)
+`pull/:pullId/tree/:path+` and `pull/:pullId/blob/:path+`. **Purpose:** browse the PR's head-commit
+file tree, then open a single file's diff/coverage. Same three-state line coloring as the repo
+file viewer (see the Usage Guide's "Line by line in a file").
+
+**Note:** on Team-plan private repos, only **Files changed**, **Commits**, and **File
+explorer** show.
+
+#### 13. CommitDetailPage (SCR030–SCR033)
+
+Shell at `/:provider/:owner/:repo/commit/:commit*`. The uploads-history card and YAML-preview
+modal on this page are covered in the Usage Guide's "Looking at a single commit".
+
+##### Files changed (SCR032, default tab)
+`commit/:commit`, exact. **Purpose:** files changed in this commit with coverage.
+
+##### Indirect changes (SCR033)
+`commit/:commit/indirect-changes`, exact. **Access:** hidden when `repoData.repository.private
+&& isTeamPlan` — same Team-plan restriction as the PR page.
+
+##### File explorer (SCR030 tree + SCR031 blob)
+`commit/:commit/tree/:path+` and `commit/:commit/blob/:path+`. **Purpose:** browse this commit's
+file tree, then open a single file's coverage.
+
+#### 14. NotFound (SCR058)
+
+**"Not found"** — not a routed screen of its own; it's the fallback rendered inside two
+independent switches: unmatched `/account/:provider/:owner/*` paths and unmatched
+`/:repo/config/*` paths, including the org-membership guard on Configuration. Also what
+AnalyticsPage and OwnerPage render internally when their owner query comes back empty.
+**Purpose:** static "page not found" message with an illustration. **Actions:** none — no
+navigation links out.
+
+#### 15. TermsOfService — not available in this build
+
+Not a URL of its own; it's a full-page content swap shown in place of
+whatever screen you requested, triggered when you haven't yet agreed to the terms — but that
+gate only fires on non-self-hosted instances. **On Athena this screen can never appear** —
+there is no terms-of-service gate for self-hosted users. For completeness, were it reachable:
+it asks for your name, email, and marketing-consent checkbox alongside the ToS agreement
+checkbox.
+
+#### 16. DefaultOrgSelector — unreachable, no implementation in this version
+
+**This screen has no implementation in this version of Athena and is not reachable by any
+user.** Nothing builds it and no route leads to it, so it has no URL, no UI and no behavior. It
+is flagged here plainly rather than described, since inventing behavior for it would
+misrepresent the product.
+
+#### Screens gated off in this self-hosted build — summary
+
+| Screen(s) | Why it's absent |
+|---|---|
+| MembersPage (SCR003) | self-hosted redirect + route not registered |
+| PlanPage family (SCR016–SCR022) | self-hosted redirect + route not registered |
+| Members / Plan tabs everywhere | removed from every org-level tab bar |
+| Account Admin tab (SCR009) | only renders for admins on non-self-hosted instances |
+| Access tab (SCR012), conditionally | disappears if the instance admin sets `HIDE_ACCESS_TAB=true` |
+| TermsOfService | gate only fires on non-self-hosted instances |
+| LoginPage (SCR001) | self-hosted redirects `/login*` to `/` |
+| DefaultOrgSelector | not implemented and not routed in this version |
+
+Everything else in this tour — Login's self-hosted replacement (EnterpriseLandingPage), Owner,
+Analytics, Codecov AI, Account Settings' Profile/YAML/Access/Org-token tabs, Admin Settings, and
+the full RepoPage/PullRequestPage/CommitDetailPage family — is present and reachable in Athena.
 
 ## Features
 
-- [Athena — enumerated feature list](https://athena.sun-asterisk.vn/llms-full.txt): Twenty-two user-visible capabilities grouped as coverage reporting (repository, file and line level, by flag, by component), change review (pull request, commit detail, commit history), bundle analysis, test analytics, repository setup and configuration, organization views, and account plus installation administration. Also states which screens are absent from the self-hosted build. Read this for specific capability questions.
+### Backend Capabilities
+
+Athena does most of its work with no screen attached to it: it receives what your CI uploads,
+talks to your git provider, and decides what shows up as a status check, a PR comment, or a badge.
+This document covers that side — what happens for you outside the web UI, and what in `codecov.yml`
+controls it. Every claim below is cited to a file and line in the `codecov/umbrella` source at tag
+`self-hosted-25.6.2`.
+
+#### Sending Reports From CI
+
+All upload endpoints are mounted under `/upload/`.
+
+| What you're uploading | Path | Notes |
+|---|---|---|
+| Coverage report, legacy protocol v2 (raw body) | `POST /upload/v2` | Stores the request body directly in archive storage. |
+| Coverage report, legacy protocol v4 (presigned PUT) | `POST /upload/v4` | Returns a presigned PUT URL; the client uploads the report there directly. |
+| Coverage report, current multi-step protocol | `POST /upload/<service>/<repo>/commits` → `.../commits/<sha>/reports` → `.../reports/<code>/uploads` | Three-call flow: register the commit, register a report, then register an upload and get a presigned upload URL. |
+| Coverage report, one-shot convenience endpoint | `POST /upload/<service>/<repo>/upload-coverage` | Does commit + report + upload creation in one call. |
+| Test results (JUnit XML) | `POST /upload/test_results/v1` | Marks the repo `test_analytics_enabled`; accepts `flags`. |
+| Bundle analysis (JS bundle stats) | `POST /upload/bundle_analysis/v1` | Marks the repo `bundle_analysis_enabled`; supports a custom `compareSha`. |
+| Download a stored report | `GET /upload/<service>/<owner>/<repo>/download?path=...` | Redirects (302) to a 30-second presigned GET URL; only paths under `v4/raw/...` or `shelter/...` for that exact repo are served. |
+| Mark a commit's upload window as done | `POST /upload/<service>/<repo>/commits/<sha>/upload-complete` | Reports back `uploads_total/success/processing/error` and manually triggers the "all uploads in" flow. |
+| Force notifications on a commit with no code changes | `POST /upload/<service>/<repo>/commits/<sha>/empty-upload` | Compares the PR's changed files against `codecov.yml`'s `ignore` list (plus a built-in list of non-testable extensions); if every changed file is ignorable it fires a passing notification, otherwise a failing one. |
+| Copy a report from one commit onto another | `POST /upload/<service>/<repo>/commits/transplant` | Takes `from_sha`/`to_sha`. |
+
+#### How You Authenticate an Upload
+
+Coverage, test-results and bundle-analysis uploads accept several credentials:
+
+- **Repository upload token** — the classic per-repo token.
+- **Organization-level token** — one token valid across every repo in your org.
+- **Global upload token** — an instance-wide token (coverage endpoints only).
+- **GitHub Actions OIDC token** — no stored secret at all; Athena verifies the OIDC JWT against
+  `token.actions.githubusercontent.com` and matches the `repository`/`repository_owner` claims
+  to a known repo.
+- **Tokenless, for public repos only** — Athena calls back into your CI provider's own API to
+  confirm the build is real. Supported: AppVeyor, Azure Pipelines, CircleCI, Cirrus CI, GitHub
+  Actions, Travis. For GitHub Actions it checks the workflow run is public, its repo slug and
+  commit SHA match your upload, and the run finished (or is still running) within the last ~10
+  minutes.
+
+You can also point the uploader at a non-default `codecov.yml` location with the `yaml` upload
+parameter.
+
+#### What Happens After an Upload Lands
+
+- Each upload becomes an intermediate report; a separate finisher step merges every upload for
+  a commit into that commit's single combined report and applies the CI diff to it.
+- **Flags**: any `flags` you send on an upload become repository flag records tied to that
+  upload, created on first use. Flags are how per-flag coverage and the flag badge get computed
+  later.
+- **Components**: a component is a named group defined by a set of flags and/or file paths;
+  Athena computes each component's coverage by filtering the merged report down to its matching
+  flags and paths.
+- **Carryforward for bundle analysis**: if a commit gets a coverage or test-results upload but
+  no bundle-analysis upload, Athena still creates a bundle-analysis report for it by copying
+  the parent commit's bundle report forward, so bundle comparisons never break on a commit that
+  just didn't ship a JS build.
+- Once merging is decided, Athena schedules the notify task, and if the commit is a PR's
+  current head it also re-syncs the pull and schedules a base/head comparison.
+
+#### Limits You'll Hit on Upload
+
+- **Per-commit upload cap**: by default at most 150 uploads (successful, non-carryforward) are
+  accepted for a single commit; your instance can raise this per-owner via `max_upload_limit`
+  (enforced again server-side at via `setup.max_sessions`, default 150).
+- **Monthly upload cap**: gated behind `UPLOAD_THROTTLING_ENABLED` and your plan's
+  `monthly_uploads_limit`, checked only on a commit's first upload.
+- **Private-repo credits**: on hosted Codecov a private repo must be activated with repo
+  credits before it can accept uploads. On an install with `setup.enterprise_license`
+  configured — the self-hosted licensing path Athena runs under — that credit check is skipped
+  entirely.
+
+#### Talking to Your Git Provider
+
+Webhooks are mounted under `/webhooks/` for GitHub, GitHub Enterprise, GitLab, GitLab
+Enterprise, Bitbucket, and Bitbucket Server. Signatures are HMAC-verified per provider before
+any event is processed. Since Athena only accepts GitHub logins, every repository on it is a
+GitHub repository and only the GitHub paths below can actually fire; the others matter only to
+an admin who adds a second provider.
+
+What an event does:
+
+- **Push to your default branch** → schedules a pending status on the head commit, if your
+  instance has that repo enabled for pending statuses.
+- **CI status update on GitHub, job event on GitLab, commit-status event on Bitbucket** →
+  triggers the notify task for that commit, which is what actually posts checks and comments.
+- **Pull or merge request opened, reopened, synchronized, labeled, merged, closed** → re-syncs
+  the PR's metadata and re-runs the comparison against its base.
+- **GitHub App installed, uninstalled, suspended, or its repo list changed** → re-syncs which
+  repos and teams you have access to.
+- **GitLab system hooks** (project rename/transfer/destroy, org membership changes) are
+  processed only if your instance has an enterprise license configured; otherwise they are
+  rejected outright.
+
+##### Status Checks and PR Comments
+
+- The commit-status names Athena posts follow the pattern `codecov/<context>[/<key>]` where
+  `<context>` is `project`, `patch`, or `changes` — each driven by the matching key under
+  `codecov.yml`'s `coverage.status` section.
+- Per status you can set (under `coverage.status.<context>.<key>`, or `.default`): `branches`
+  (only run on matching branches), `only_pulls` (pending status only on PRs), `set_pending`
+  (turn the pending status off), `informational` (report success even on CI failure), and
+  `if_ci_failed` (state to use — default `error` — when CI failed).
+- Setting the initial pending status while CI runs is gated per repo on the server side; it is
+  not a `codecov.yml` switch.
+- Whether and when the real notification (statuses plus PR comment) fires is controlled by
+  `codecov.yml`'s `codecov.notify` and `codecov.require_ci_to_pass` keys: `require_ci_to_pass`
+  (skip notifying if CI failed, default true), `notify.wait_for_ci` (wait for CI results before
+  notifying, default true), `notify.after_n_builds` (wait for at least N uploads),
+  `notify.manual_trigger` (never auto-notify), and `notify.notify_error` (post an error
+  notification instead of silently skipping when some uploads failed to process).
+- Test-result failures short-circuit notification: if a commit's uploaded JUnit results contain
+  any failed tests, Athena skips the usual notify flow for that commit.
+
+#### Reading Your Data Programmatically
+
+Beyond the web UI, your coverage data is available over a documented REST API at
+`/api/v2/<service>/<owner>/repos/<repo>/...`. It covers pulls, commits, branches, flags,
+components, test results, comparisons, totals, full and per-file reports, coverage timeseries,
+and a repo's uploads. A self-serve OpenAPI schema and a rendered docs page ship at
+`/api/v2/schema/` and `/api/v2/docs/`. A read-only endpoint at `.../repos/<repo>/config/`
+returns the effective configuration for that repo.
+
+#### Badges and Graphs You Can Embed
+
+- **Coverage badge**: `GET /<service>/<owner>/<repo>/branch/<branch>/graph/badge.svg` (or
+  `.txt`, or the default-branch form without `/branch/<branch>`) — supports `?precision=0|1|2`,
+  `?flag=<name>` for a flag's coverage, `?component=<id>` for a component's coverage, and
+  `?token=<image_token>` for private repos. A private repo with no or mismatched token gets a
+  gray "unknown" badge rather than a 404.
+- **Bundle-size badge**: `GET.../graph/bundle/<bundle-name>/badge.svg`, same branch and token
+  rules.
+- **Sunburst, icicle, tree and commits graphs**:
+  `GET.../graph/{sunburst|icicle|tree|commits}.svg`, scoped to a branch, a commit, or a pull
+  request, with `?width=` and `?height=`.
+
+#### Test Analytics and Flaky-Test Tracking
+
+After a test-results (JUnit) upload finishes processing, Athena runs a background pass over the
+new test instances to update flaky-test bookkeeping — it tracks each flake's pass/fail streak
+and recency. Whether all tests passed, and any test-processing error message, feed directly
+into the same notify flow that posts statuses and comments.
+
+#### Bundle Analysis Notifications
+
+Bundle-analysis uploads get their own notify step, separate from coverage notify, run once all
+bundle processors for a commit have finished.
+
+#### AI PR Review
+
+`codecov.yml`'s `ai_pr_review` section can turn on an AI-generated pull request review:
+`ai_pr_review.enabled` (default off) and `ai_pr_review.method` (`auto`, or `label` to only run
+when a PR carries `ai_pr_review.label_name`). It runs for GitHub repos only.
+
+On a self-hosted install the review is brokered through a second, separate GitHub App
+identified by a `github.ai_features_app_id` configuration value that the instance operator has
+to set up. Without it, auto-review requests are answered as not enabled. Ask your Athena
+operator whether that app is configured before relying on this feature.
+
+#### Not Documented Here
+
+These exist in the product but are not described above, because they could not be verified in the
+source that was read:
+
+- Static analysis upload. A dedicated upload token type exists, but its endpoint was not read,
+  so no behavior is claimed for it.
+- Label analysis.
+- The `codecov.yml` keys that control PR comment layout. Comment posting is confirmed; its
+  layout configuration surface was not read.
+- Notification channels outside your git provider (Slack, generic webhooks, and similar).
+
+### What you can do with Athena
+
+Every capability below was verified against the Athena 25.6.2 source. Where something exists in
+the upstream Codecov code but does not work on this deployment, it is listed under "Not available
+on Athena" rather than described as if it worked.
+
+#### Sign in
+
+Athena signs you in through GitHub, the only login provider this instance has configured. On
+this self-hosted build the entry point is the Athena landing page rather than a login screen,
+and that page shows one card per configured provider — so a GitHub card is all you see. After
+the first sign-in you sync at least one GitHub organization before any repository page becomes
+reachable.
+
+#### Read your coverage
+
+- **Repository overview** — the current coverage percentage for a repository, its trend over time,
+  and a sunburst chart of where coverage sits across the tree. Pick any branch.
+- **File tree and file viewer** — walk the repository directory by directory, then open a file and
+  read it line by line with each line marked covered, uncovered or partially covered.
+- **Coverage by flag** — a flag is a label you attach to an upload (`unit`, `integration`, and so
+  on). Each flag carries its own coverage number, so you can see which test suite covers what.
+- **Coverage by component** — a component is a named group of files you define in `codecov.yml`.
+  Components give you coverage per area of the codebase rather than per test suite.
+- **Commit and pull request lists** — every commit and every pull request Athena has processed for
+  the repository, with their coverage outcome.
+
+#### Review a change
+
+- **Pull request comparison** — what the pull request does to coverage: the files it changed, the
+  lines it added that tests do not reach, and the resulting coverage delta against the base.
+- **Indirect changes** — files the pull request did not edit whose coverage nevertheless moved,
+  usually because a code path is now reached differently.
+- **Per-file diff** — the diff itself, annotated line by line with coverage.
+- **File explorer within a pull request or commit** — browse the whole tree at that point in
+  history, not only the changed files.
+- **Flags and components on a pull request** — the same slicing as the repository view, scoped to
+  the change under review.
+- **Commit detail** — the same set of views for a single commit: files changed, indirect changes,
+  per-file diff, and the tree at that commit.
+
+#### Bundle analysis
+
+For JavaScript projects, Athena reports the size of your built bundles and how a change moves
+them. It needs a bundler plugin in your build; the onboarding screens cover Vite, Rollup, Webpack,
+Remix, Nuxt, SvelteKit and SolidStart.
+
+#### Test analytics
+
+Athena reports your test results — which tests failed, how long they took, and which ones are
+flaky (passing and failing without the code changing). This needs JUnit XML uploaded from your CI;
+the onboarding screens cover GitHub Actions and the Codecov CLI.
+
+#### Set up a repository
+
+- **Onboarding** — for a repository that has never uploaded, Athena shows the exact steps for your
+  CI: GitHub Actions, CircleCI, or any other CI through the CLI.
+- **Configuration** — the repository's settings screen: default branch, the upload token, and the
+  destructive actions (erase the repository's data, deactivate the repository).
+- **`codecov.yml` viewer and validator** — read the effective configuration, validate a candidate
+  file, and generate an encrypted secret string to paste into it.
+- **Badges and graphs** — copy-paste snippets in Markdown, HTML or RST for a live coverage badge
+  and for the sunburst, icicle, tree and commit graphs, optionally scoped to one branch.
+
+#### Organization views
+
+- **Repository list** — every repository in the organization with its coverage, searchable and
+  sortable.
+- **Organization analytics** — coverage across the organization's repositories over time.
+
+#### Your account
+
+- **Profile** — your name, email and activation status on this instance.
+- **Default `codecov.yml`** — the organization-level configuration that new repositories inherit.
+- **Personal access tokens and sessions** — create and revoke your own API tokens, and see or end
+  your active login sessions.
+- **Okta SSO** — available to organizations on an Enterprise plan; the gate is plan tier, not
+  self-hosted status.
+
+#### Upload tokens
+
+Every upload authenticates with a token. A repository has its own token, and an organization can
+have a shared one that works across all its repositories. The repository token is on the
+repository's configuration screen; the organization token is under account settings.
+
+#### Instance administration
+
+An Athena instance admin — a role that exists only on a self-hosted install — can see the list of
+users on the instance, activate or deactivate their seats, control whether new users are activated
+automatically, and view who else holds instance-admin rights.
+
+### Not available on Athena
+
+These exist in the upstream Codecov codebase but do not work on this deployment. They are listed
+so an agent reading this file does not offer them to a user.
+
+- **Billing and plan management** — there are no plans, invoices, upgrades or cancellations.
+  Athena redirects away from every billing screen.
+- **Organization member administration** — the member list and seat-activation screen for an
+  organization is removed from the routes and redirects away. Seat activation on Athena happens
+  through instance administration instead.
+- **The org-admin role** — promoting or revoking an organization admin has no self-hosted
+  equivalent, so that screen is unreachable and the "regenerate organization upload token" button
+  stays disabled.
+- **Codecov AI** — the page is reachable by direct URL, but its only navigation entry sits behind
+  a feature flag that is off by default, and the AI review itself needs a second GitHub App that
+  the instance operator must configure separately. Ask your Athena operator before relying on it.
+
+One further item is not a user-facing capability at all: the Mock Service Worker script shipped in
+the build is development-time infrastructure for mocking API calls locally, and no end user
+interacts with it.
+
