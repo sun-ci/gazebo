@@ -57,3 +57,4 @@ codecov
 .vscode
 
 self-hosted.tar
+graphify-out/

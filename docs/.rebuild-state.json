@@ -1,0 +1,27 @@
+{
+  "doc_shas": {
+    "api-map.md": "66b73cc5d9dafb3a4c37022fda9e1c7ea88facfacd5fb01ae19c4b924dd0b747",
+    "behavior-logic.md": "95399280b647b009b5310ca769766b78949c2b7b73126aef19807f4d4ea42d7e",
+    "data-model.md": "3be80c2d7cd6bb6c423eed5da9522510bc787351dec743faa7f5bf780ca125fd",
+    "feature-list.md": "96b4499d032b123b88ca464be5aa328dbfaae80ef9df5424454a97ce7f267a8a",
+    "permissions.md": "73f2dbac8caa9034edc8edc14c03588c921503150cf6e3e3ae314f1c45e1c17f",
+    "route-list.md": "40f695b239200ba256c96b0fd341e058945778c4b95422f22273c8046da1a79b",
+    "screen-flow.md": "533b4c43adcf31457cfd5b86439bdf1a82efcef65fd3a63892751ce1d56efb9f",
+    "screen-list.md": "ed68e508142e0c0554e4983190674d2aeee9bd0a6ce5674cde26e02481fba7b4",
+    "system-overview.md": "0b0a7324f2d71fd32d017c6bf603d2049b032de8981174ed276fb3b76267fb54",
+    "user-stories.md": "f7c4a08d9ce8a7cf7e77d45c3c0355688393814500a7599d319a055157501225"
+  },
+  "fcode_index_sha": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "last_api_contracts_run_sha": "",
+  "last_feature_spec_run_sha": "",
+  "last_flows_run_sha": "",
+  "last_glossary_run_sha": "",
+  "last_rebuild_sha": "5a7a5de7e6ef660e7a2527b835c5ba368ba02103",
+  "last_test_cases_run_sha": "",
+  "mode": "full",
+  "primary_lang": "",
+  "rebuilt_at": "2026-09-08T11:33:50Z",
+  "schema_version": "22.1.0",
+  "screen_spec_shas": {},
+  "translations": {}
+}
